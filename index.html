@@ -15,6 +15,18 @@
   <!-- Styles -->
   <link rel="stylesheet" href="./css/app.css">
   
+  <script src="./js/store.js"></script>
+  <script>
+    // 在Vue加载前先检查登录状态，未登录直接跳转，避免闪屏和死循环
+    if (window.Store) {
+      Store.initDefaultAdmin();
+      var _currentUser = Store.getCurrentUser();
+      if (!_currentUser) {
+        window.location.replace('pages/login.html');
+      }
+    }
+  </script>
+  
   <!-- Vue 3 -->
   <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.4.27/vue.global.prod.min.js"></script>
   
@@ -28,7 +40,7 @@
   </div>
 
   <!-- 核心脚本 -->
-  <script src="./js/store.js"></script>
+  <!-- store.js已在head中加载 -->
   <script src="./js/sop.js"></script>
   <script src="./js/craft-templates.js"></script>
   <script src="./js/coze-api.js"></script>
