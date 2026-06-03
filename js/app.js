@@ -33,12 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
           currentUser.value = user;
           isLoggedIn.value = true;
-        } else {
-          // 未登录，直接跳转，不依赖Vue渲染
-          window.location.replace('pages/login.html');
-          return;
         }
         loading.value = false;
+      };
+      
+      // 供外部登录后调用，刷新Vue状态
+      const checkLoginFromOutside = () => {
+        checkLogin();
+        if (isLoggedIn.value) {
+          loadData();
+        }
       };
       
       // 跳转登录
@@ -708,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navigateTo, goToQuotation, getProjectQuote, createProject, startInspection,
         saveInspection, runDiagnosis, submitStepForReview, reviewStep, addStepPhoto,
         resubmitStep, assignCraft, exportReport, saveSettings, clearAllData,
-        showConfirm, showToastMessage, loadData, handleLogout, goToLogin,
+        showConfirm, showToastMessage, loadData, handleLogout, goToLogin, checkLoginFromOutside,
         getEmployees, getRoleText,
         // 水印相机
         takePhoto, takeBeforePhoto, takeAfterPhoto,
