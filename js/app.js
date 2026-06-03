@@ -27,10 +27,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // 检查登录状态
       const checkLogin = () => {
         loading.value = true;
+        // 初始化默认管理员
+        if (window.Store) Store.initDefaultAdmin();
         const user = Store.getCurrentUser();
         if (user) {
           currentUser.value = user;
           isLoggedIn.value = true;
+        } else {
+          // 未登录，直接跳转，不依赖Vue渲染
+          window.location.replace('pages/login.html');
+          return;
         }
         loading.value = false;
       };
