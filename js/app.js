@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // 检查登录状态
       const checkLogin = () => {
         loading.value = true;
-        // 初始化默认管理员
         if (window.Store) Store.initDefaultAdmin();
         const user = Store.getCurrentUser();
         if (user) {
@@ -37,17 +36,25 @@ document.addEventListener('DOMContentLoaded', () => {
         loading.value = false;
       };
       
-      // 供外部登录后调用，刷新Vue状态
-      const checkLoginFromOutside = () => {
-        checkLogin();
-        if (isLoggedIn.value) {
+      // 供外部（内嵌登录页）登录后调用，刷新Vue状态
+      const refreshLoginState = () => {
+        if (window.Store) Store.initDefaultAdmin();
+        const user = Store.getCurrentUser();
+        if (user) {
+          currentUser.value = user;
+          isLoggedIn.value = true;
           loadData();
         }
       };
       
-      // 跳转登录
+      // 跳转登录 - 不再跳转页面，显示内嵌登录界面
       const goToLogin = () => {
-        window.location.href = 'pages/login.html';
+        const loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) {
+          loginScreen.style.display = 'flex';
+          loginScreen.classList.remove('hiding');
+        }
+        document.getElementById('app').style.display = 'none';
       };
       
       // 退出登录
@@ -60,7 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
             Store.logout();
             currentUser.value = null;
             isLoggedIn.value = false;
-            window.location.href = 'pages/login.html';
+            // 不跳转页面，直接显示内嵌登录界面
+            const loginScreen = document.getElementById('loginScreen');
+            if (loginScreen) {
+              loginScreen.style.display = 'flex';
+              loginScreen.classList.remove('hiding');
+            }
+            document.getElementById('app').style.display = 'none';
           },
           onCancel: () => { modalConfig.value.show = false; }
         };
@@ -632,17 +645,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // ========== 初始化 ==========
       onMounted(async () => {
+        // 检查登录状态 - 如果内嵌登录页已经完成登录，直接同步
         checkLogin();
+        
+        // 暴露刷新方法给外部（内嵌登录页的JS会调用）
+        window.__vueApp = { refreshLoginState };
+        
+        // 如果已经通过内嵌登录页登录成功（window.__loginDone标记）
+        if (window.__loginDone && !isLoggedIn.value) {
+          checkLogin();
+        }
+        
         if (isLoggedIn.value) loadData();
         if (settings.value.cozeBotId) {
           CozeAPI.setConfig({ botId: settings.value.cozeBotId, accessToken: settings.value.cozeToken });
         }
         
-        // 监听登录成功事件（从内嵌登录页触发）
-        window.addEventListener('login-success', () => {
-          checkLogin();
-          if (isLoggedIn.value) loadData();
-        });
+        // 轮询检查登录状态（最可靠的方式，防止事件丢失）
+        const loginPollTimer = setInterval(() => {
+          if (!isLoggedIn.value && window.Store) {
+            const user = Store.getCurrentUser();
+            if (user) {
+              currentUser.value = user;
+              isLoggedIn.value = true;
+              loadData();
+              clearInterval(loginPollTimer);
+            }
+          } else if (isLoggedIn.value) {
+            clearInterval(loginPollTimer);
+          }
+        }, 500);
+        // 30秒后停止轮询
+        setTimeout(() => clearInterval(loginPollTimer), 30000);
         
         // v4.0 初始化模块
         PhotoManager.init();
