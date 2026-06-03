@@ -15,32 +15,77 @@
   <!-- Styles -->
   <link rel="stylesheet" href="./css/app.css">
   
+  <!-- 先加载Store -->
   <script src="./js/store.js"></script>
   <script>
-    // 在Vue加载前先检查登录状态，未登录直接跳转，避免闪屏和死循环
-    if (window.Store) {
-      Store.initDefaultAdmin();
-      var _currentUser = Store.getCurrentUser();
-      if (!_currentUser) {
-        window.location.replace('pages/login.html');
-      }
-    }
+    // 在任何框架加载前初始化管理员
+    if (window.Store) Store.initDefaultAdmin();
   </script>
   
+  <!-- 登录页样式（内联，不依赖任何CDN） -->
+  <style>
+    .login-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99999; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); display: flex; flex-direction: column; padding: 20px; }
+    .login-screen.hide { display: none; }
+    .login-header { text-align: center; padding: 60px 0 40px; }
+    .login-logo { width: 80px; height: 80px; margin: 0 auto 16px; background: #fff; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold; color: #1989fa; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .login-title { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .login-subtitle { font-size: 14px; color: rgba(255,255,255,0.8); }
+    .login-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); flex: 1; }
+    .login-form-group { margin-bottom: 20px; }
+    .login-label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
+    .login-input { width: 100%; padding: 14px 16px; border: 1px solid #ebedf0; border-radius: 10px; font-size: 16px; background: #fff; outline: none; -webkit-appearance: none; }
+    .login-input:focus { border-color: #1989fa; }
+    .login-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); color: #fff; border: none; border-radius: 10px; font-size: 17px; font-weight: 600; cursor: pointer; }
+    .login-btn:active { opacity: 0.9; }
+    .login-tips { font-size: 12px; color: #999; text-align: center; margin-top: 20px; line-height: 1.8; }
+    .login-admin-hint { background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center; font-size: 13px; color: #1890ff; }
+    #loginMsg { margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; display: none; }
+    #loginMsg.success { display: block; background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+    #loginMsg.error { display: block; background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+  </style>
+</head>
+<body>
+  <!-- ====== 登录界面（纯原生，不依赖Vue/Vant） ====== -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-header">
+      <div class="login-logo">聚</div>
+      <div class="login-title">聚达勘察助手</div>
+      <div class="login-subtitle">标准化施工质检管理系统</div>
+    </div>
+    <div class="login-card">
+      <div class="login-form-group">
+        <label class="login-label">手机号</label>
+        <input type="tel" class="login-input" id="inputPhone" placeholder="请输入手机号" maxlength="11">
+      </div>
+      <div id="passwordSection" style="display:none;">
+        <div class="login-form-group">
+          <label class="login-label">密码</label>
+          <input type="password" class="login-input" id="inputPassword" placeholder="请输入密码" maxlength="4">
+        </div>
+        <div class="login-admin-hint">👔 管理员登录，请输入密码</div>
+      </div>
+      <div id="loginMsg"></div>
+      <button class="login-btn" id="btnLogin">登录</button>
+      <div class="login-tips">
+        <p>👔 管理员：13800138000 / 密码：1234</p>
+        <p>📱 员工账号由管理员创建，无需密码</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Vue主应用容器 ====== -->
+  <div id="app">
+    <!-- 页面内容由Vue渲染 -->
+  </div>
+
   <!-- Vue 3 -->
   <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.4.27/vue.global.prod.min.js"></script>
   
   <!-- Vant 4 -->
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/vant/4.8.4/index.min.css">
   <script src="https://cdn.bootcdn.net/ajax/libs/vant/4.8.4/vant.min.js"></script>
-</head>
-<body>
-  <div id="app">
-    <!-- 页面内容由Vue渲染 -->
-  </div>
 
   <!-- 核心脚本 -->
-  <!-- store.js已在head中加载 -->
   <script src="./js/sop.js"></script>
   <script src="./js/craft-templates.js"></script>
   <script src="./js/coze-api.js"></script>
@@ -60,19 +105,82 @@
   <!-- 主应用 -->
   <script src="./js/app.js"></script>
 
-  <!-- Service Worker -->
+  <!-- ====== 登录逻辑（内联，不依赖Vue/Vant） ====== -->
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(registration => {
-            console.log('SW registered:', registration.scope);
-          })
-          .catch(error => {
-            console.log('SW registration failed:', error);
-          });
+    (function() {
+      var isAdminLogin = false;
+      
+      // 如果已登录，隐藏登录界面
+      if (window.Store) {
+        var existingUser = Store.getCurrentUser();
+        if (existingUser) {
+          document.getElementById('loginScreen').style.display = 'none';
+        }
+      }
+      
+      // 手机号输入
+      document.getElementById('inputPhone').addEventListener('input', function() {
+        var phone = this.value;
+        isAdminLogin = false;
+        document.getElementById('passwordSection').style.display = 'none';
+        document.getElementById('loginMsg').style.display = 'none';
+        
+        if (phone.length === 11 && window.Store) {
+          var check = Store.checkEmployeeExists(phone);
+          if (check.isAdmin) {
+            isAdminLogin = true;
+            document.getElementById('passwordSection').style.display = 'block';
+          }
+        }
       });
-    }
+      
+      // 登录按钮
+      document.getElementById('btnLogin').addEventListener('click', function() {
+        if (!window.Store) { alert('系统未加载'); return; }
+        
+        var phone = document.getElementById('inputPhone').value;
+        var password = document.getElementById('inputPassword').value;
+        
+        if (!phone || phone.length !== 11) { showMsg('请输入正确的手机号', 'error'); return; }
+        if (isAdminLogin && !password) { showMsg('请输入密码', 'error'); return; }
+        
+        try {
+          var result;
+          if (isAdminLogin) {
+            result = Store.login(phone, password);
+          } else {
+            // 员工免密登录 - 先查找员工
+            var users = Store.getUsers();
+            var emp = null;
+            for (var i = 0; i < users.length; i++) {
+              if (users[i].employeeId === phone && users[i].role !== 'admin') { emp = users[i]; break; }
+            }
+            if (emp) {
+              result = Store.login(emp.id, '');
+            } else {
+              showMsg('账号不存在', 'error'); return;
+            }
+          }
+          
+          if (result.success) {
+            // 登录成功，直接刷新页面（刷新后会被自动检测到已登录，隐藏登录界面）
+            window.location.reload();
+          } else {
+            showMsg(result.message || '登录失败', 'error');
+          }
+        } catch(e) {
+          showMsg('登录出错：' + e.message, 'error');
+        }
+      });
+      
+      function showMsg(text, type) {
+        var el = document.getElementById('loginMsg');
+        el.textContent = text;
+        el.className = type;
+      }
+    })();
   </script>
+
+  <!-- Service Worker - 暂时禁用，避免缓存问题 -->
 </body>
 </html>
