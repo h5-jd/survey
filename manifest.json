@@ -1,0 +1,37 @@
+{
+  "name": "聚达勘察助手",
+  "short_name": "勘察助手",
+  "description": "珠海聚达建筑工程有限公司员工端勘察工具",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8fa",
+  "theme_color": "#1989fa",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}

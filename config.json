@@ -1,0 +1,14 @@
+{
+  "app_name": "聚达勘察助手",
+  "company": "珠海聚达建筑工程有限公司",
+  "phone": "0756-8866780",
+  "mobile": "13411435326",
+  "address": "珠海市拱北港昌路341号3楼333室",
+  "business": "渗漏维修（16年经验）",
+  "coverage": "卫生间/外墙/屋面/窗框/地下室",
+  "coze_api": {
+    "baseUrl": "https://api.coze.cn",
+    "botId": "",
+    "accessToken": ""
+  }
+}

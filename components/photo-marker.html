@@ -1,0 +1,280 @@
+<!-- 
+  拍照+画圈标记组件
+  支持触摸画圈标注渗水位置
+-->
+<div class="photo-marker-component">
+  <div class="marker-canvas-container" ref="container">
+    <canvas ref="canvas" @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd"></canvas>
+    <img v-if="imageUrl" :src="imageUrl" ref="image" @load="onImageLoad" style="display: none;">
+  </div>
+  
+  <div class="marker-tools">
+    <button class="marker-tool-btn" :class="{ active: toolMode === 'draw' }" @click="toolMode = 'draw'" title="画圈">
+      ⭕
+    </button>
+    <button class="marker-tool-btn" @click="clearMarkers" title="清除">
+      🗑️
+    </button>
+    <button class="marker-tool-btn" @click="undoMarker" title="撤销">
+      ↩️
+    </button>
+  </div>
+  
+  <div class="photo-position-selector">
+    <span>拍摄位置：</span>
+    <label>
+      <input type="radio" v-model="position" value="indoor"> 🏠 室内
+    </label>
+    <label>
+      <input type="radio" v-model="position" value="outdoor"> 🌳 室外
+    </label>
+  </div>
+</div>
+
+<script>
+export default {
+  name: 'PhotoMarker',
+  props: {
+    imageUrl: String,
+    markers: {
+      type: Array,
+      default: () => []
+    },
+    position: {
+      type: String,
+      default: 'indoor'
+    }
+  },
+  emits: ['update:markers', 'update:position', 'save'],
+  data() {
+    return {
+      toolMode: 'draw',
+      currentMarker: null,
+      isDrawing: false,
+      canvas: null,
+      ctx: null,
+      imageElement: null,
+      scale: 1
+    };
+  },
+  mounted() {
+    this.initCanvas();
+  },
+  methods: {
+    initCanvas() {
+      this.canvas = this.$refs.canvas;
+      this.ctx = this.canvas.getContext('2d');
+      this.imageElement = this.$refs.image;
+      
+      // 设置画布尺寸
+      this.resizeCanvas();
+      window.addEventListener('resize', this.resizeCanvas);
+    },
+    
+    resizeCanvas() {
+      const container = this.$refs.container;
+      const rect = container.getBoundingClientRect();
+      
+      this.canvas.width = rect.width;
+      this.canvas.height = rect.width; // 正方形
+      
+      // 如果有图片，重新绘制
+      if (this.imageElement && this.imageElement.complete) {
+        this.drawImage();
+      }
+      
+      // 重新绘制已有标记
+      this.redrawMarkers();
+    },
+    
+    onImageLoad() {
+      this.resizeCanvas();
+      this.drawImage();
+    },
+    
+    drawImage() {
+      if (!this.imageElement || !this.ctx) return;
+      
+      const img = this.imageElement;
+      const canvas = this.canvas;
+      const ctx = this.ctx;
+      
+      // 计算缩放比例以适应画布
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width - img.width * scale) / 2;
+      const y = (canvas.height - img.height * scale) / 2;
+      
+      this.scale = scale;
+      this.offsetX = x;
+      this.offsetY = y;
+      
+      // 清除并绘制图片
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+    },
+    
+    getCanvasPoint(e) {
+      const rect = this.canvas.getBoundingClientRect();
+      const touch = e.touches[0] || e.changedTouches[0];
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    },
+    
+    handleTouchStart(e) {
+      if (this.toolMode !== 'draw') return;
+      e.preventDefault();
+      
+      const point = this.getCanvasPoint(e);
+      this.isDrawing = true;
+      this.currentMarker = {
+        points: [point],
+        color: '#ee0a24',
+        lineWidth: 3
+      };
+    },
+    
+    handleTouchMove(e) {
+      if (!this.isDrawing || this.toolMode !== 'draw') return;
+      e.preventDefault();
+      
+      const point = this.getCanvasPoint(e);
+      this.currentMarker.points.push(point);
+      
+      // 绘制当前标记
+      this.drawCurrentMarker();
+    },
+    
+    handleTouchEnd(e) {
+      if (!this.isDrawing) return;
+      e.preventDefault();
+      
+      this.isDrawing = false;
+      
+      if (this.currentMarker && this.currentMarker.points.length > 2) {
+        // 保存标记
+        const newMarkers = [...this.markers, this.currentMarker];
+        this.$emit('update:markers', newMarkers);
+        
+        // 绘制闭合圆
+        this.drawMarker(this.currentMarker, true);
+      }
+      
+      this.currentMarker = null;
+    },
+    
+    drawCurrentMarker() {
+      if (!this.currentMarker) return;
+      
+      // 重新绘制图片和已有标记
+      this.redrawMarkers();
+      this.drawMarker(this.currentMarker, false);
+    },
+    
+    redrawMarkers() {
+      // 重绘图片
+      if (this.imageElement && this.imageElement.complete) {
+        this.drawImage();
+      }
+      
+      // 重绘所有标记
+      this.markers.forEach(marker => {
+        this.drawMarker(marker, true);
+      });
+    },
+    
+    drawMarker(marker, closed = true) {
+      if (!marker.points || marker.points.length < 2) return;
+      
+      const ctx = this.ctx;
+      ctx.beginPath();
+      ctx.strokeStyle = marker.color;
+      ctx.lineWidth = marker.lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.moveTo(marker.points[0].x, marker.points[0].y);
+      
+      for (let i = 1; i < marker.points.length; i++) {
+        ctx.lineTo(marker.points[i].x, marker.points[i].y);
+      }
+      
+      if (closed && marker.points.length > 2) {
+        ctx.closePath();
+      }
+      
+      ctx.stroke();
+      
+      // 绘制箭头指示
+      if (marker.points.length > 0) {
+        ctx.fillStyle = marker.color;
+        const lastPoint = marker.points[marker.points.length - 1];
+        ctx.beginPath();
+        ctx.arc(lastPoint.x, lastPoint.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+    
+    clearMarkers() {
+      this.$emit('update:markers', []);
+      this.redrawMarkers();
+    },
+    
+    undoMarker() {
+      if (this.markers.length > 0) {
+        const newMarkers = this.markers.slice(0, -1);
+        this.$emit('update:markers', newMarkers);
+        this.redrawMarkers();
+      }
+    }
+  },
+  
+  watch: {
+    markers(newVal) {
+      this.redrawMarkers();
+    },
+    imageUrl() {
+      // 图片变化时重新加载
+      this.$nextTick(() => {
+        if (this.imageElement && this.imageElement.src !== this.imageUrl) {
+          this.imageElement.src = this.imageUrl;
+        }
+      });
+    }
+  },
+  
+  beforeUnmount() {
+    window.removeEventListener('resize', this.resizeCanvas);
+  }
+};
+</script>
+
+<style scoped>
+.photo-marker-component {
+  position: relative;
+}
+
+.marker-canvas-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.photo-position-selector {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  font-size: 14px;
+}
+
+.photo-position-selector label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+</style>

@@ -1,0 +1,282 @@
+<!-- 
+  多选漏水位置组件
+  支持同时选择多个渗漏位置，并可为每个位置添加备注
+-->
+<template>
+  <div class="leak-selector-component">
+    <!-- 位置选择网格 -->
+    <div class="leak-selector">
+      <div 
+        v-for="loc in locations" 
+        :key="loc.id"
+        :class="['leak-item', { selected: isSelected(loc.id) }]"
+        @click="toggleLocation(loc)"
+      >
+        <span class="icon">{{ loc.icon }}</span>
+        <span class="name">{{ loc.name }}</span>
+      </div>
+    </div>
+    
+    <!-- 选中位置详情 -->
+    <div v-if="selected.length > 0" class="selected-details">
+      <div v-for="item in selected" :key="item.id" class="detail-item">
+        <div class="detail-header">
+          <span class="icon">{{ item.icon }}</span>
+          <span class="name">{{ item.name }}</span>
+          <span class="remove-btn" @click="removeLocation(item.id)">✕</span>
+        </div>
+        <div class="form-group">
+          <textarea 
+            class="form-input notes-input"
+            :value="item.notes"
+            @input="e => updateNotes(item.id, e.target.value)"
+            placeholder="可选：添加该位置的详细描述或观察到的渗漏特征..."
+            rows="3"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 快捷备注 -->
+    <div v-if="selected.length > 0" class="quick-notes">
+      <div class="quick-notes-title">💡 常用备注（点击添加）</div>
+      <div class="quick-notes-list">
+        <span 
+          v-for="note in quickNotes" 
+          :key="note" 
+          class="quick-note-tag"
+          @click="appendQuickNote(note)"
+        >
+          {{ note }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'LeakSelector',
+  props: {
+    selected: {
+      type: Array,
+      default: () => []
+    }
+  },
+  emits: ['update'],
+  setup(props, { emit }) {
+    // 渗漏位置列表
+    const locations = [
+      { id: 'wall', name: '外墙', icon: '🏠' },
+      { id: 'roof', name: '屋面', icon: '🏗️' },
+      { id: 'window', name: '窗框', icon: '🪟' },
+      { id: 'pipe', name: '管道', icon: '🔧' },
+      { id: 'toilet', name: '卫生间', icon: '🚽' },
+      { id: 'basement', name: '地下室', icon: '📦' },
+      { id: 'balcony', name: '阳台', icon: '🌿' },
+      { id: 'other', name: '其他', icon: '❓' }
+    ];
+    
+    // 快捷备注选项
+    const quickNotes = [
+      '有裂缝',
+      '发霉严重',
+      '有水渍',
+      '有渗水痕迹',
+      '瓷砖空鼓',
+      '密封胶老化'
+    ];
+    
+    // 检查是否已选中
+    const isSelected = (locId) => {
+      return props.selected.some(s => s.id === locId);
+    };
+    
+    // 切换选中状态
+    const toggleLocation = (loc) => {
+      const current = [...props.selected];
+      const index = current.findIndex(s => s.id === loc.id);
+      
+      if (index >= 0) {
+        current.splice(index, 1);
+      } else {
+        current.push({
+          id: loc.id,
+          name: loc.name,
+          icon: loc.icon,
+          notes: ''
+        });
+      }
+      
+      emit('update', current);
+    };
+    
+    // 移除选中项
+    const removeLocation = (locId) => {
+      const current = props.selected.filter(s => s.id !== locId);
+      emit('update', current);
+    };
+    
+    // 更新备注
+    const updateNotes = (locId, notes) => {
+      const current = [...props.selected];
+      const item = current.find(s => s.id === locId);
+      if (item) {
+        item.notes = notes;
+        emit('update', current);
+      }
+    };
+    
+    // 追加快捷备注
+    const appendQuickNote = (note) => {
+      if (props.selected.length > 0) {
+        const current = [...props.selected];
+        const lastItem = current[current.length - 1];
+        lastItem.notes = lastItem.notes 
+          ? lastItem.notes + '；' + note 
+          : note;
+        emit('update', current);
+      }
+    };
+    
+    return {
+      locations,
+      quickNotes,
+      isSelected,
+      toggleLocation,
+      removeLocation,
+      updateNotes,
+      appendQuickNote
+    };
+  }
+};
+</script>
+
+<style scoped>
+.leak-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.leak-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border: 2px solid var(--border-color, #ebedf0);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #fff;
+  user-select: none;
+}
+
+.leak-item:active {
+  transform: scale(0.95);
+}
+
+.leak-item.selected {
+  border-color: var(--primary-color, #1989fa);
+  background: rgba(25, 137, 250, 0.05);
+}
+
+.leak-item .icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.leak-item .name {
+  font-size: 12px;
+  color: var(--text-color, #333);
+  text-align: center;
+}
+
+.leak-item.selected .name {
+  color: var(--primary-color, #1989fa);
+  font-weight: 600;
+}
+
+.selected-details {
+  margin-top: 16px;
+}
+
+.detail-item {
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.detail-header .icon {
+  font-size: 20px;
+}
+
+.detail-header .name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.remove-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: #999;
+}
+
+.remove-btn:active {
+  background: #e0e0e0;
+}
+
+.notes-input {
+  font-size: 14px;
+  min-height: 60px;
+  resize: none;
+}
+
+.quick-notes {
+  margin-top: 12px;
+}
+
+.quick-notes-title {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.quick-notes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-note-tag {
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid var(--border-color, #ebedf0);
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-note-tag:active {
+  background: var(--primary-color, #1989fa);
+  border-color: var(--primary-color, #1989fa);
+  color: #fff;
+}
+</style>

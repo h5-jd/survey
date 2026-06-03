@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>聚达勘察助手 - 登录</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@4/lib/index.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); }
+    
+    .login-container { min-height: 100vh; display: flex; flex-direction: column; padding: 20px; }
+    
+    .login-header { text-align: center; padding: 60px 0 40px; }
+    .login-logo { width: 80px; height: 80px; margin: 0 auto 16px; background: #fff; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold; color: #1989fa; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .login-title { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .login-subtitle { font-size: 14px; color: rgba(255,255,255,0.8); }
+    
+    .login-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); flex: 1; }
+    
+    .tab-container { display: flex; margin-bottom: 24px; border-radius: 8px; overflow: hidden; background: #f7f8fa; }
+    .tab-item { flex: 1; padding: 12px; text-align: center; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.3s; color: #666; }
+    .tab-item.active { background: #1989fa; color: #fff; }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
+    .form-input { width: 100%; padding: 14px 16px; border: 1px solid #ebedf0; border-radius: 10px; font-size: 16px; transition: border-color 0.3s; background: #fff; }
+    .form-input:focus { outline: none; border-color: #1989fa; }
+    
+    .role-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .role-item { padding: 14px 8px; border: 2px solid #ebedf0; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .role-item:active { transform: scale(0.98); }
+    .role-item.selected { border-color: #1989fa; background: rgba(25,137,250,0.05); }
+    .role-item .role-icon { font-size: 24px; margin-bottom: 4px; }
+    .role-item .role-name { font-size: 13px; font-weight: 600; color: #333; }
+    
+    .btn-login { width: 100%; padding: 16px; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); color: #fff; border: none; border-radius: 10px; font-size: 17px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+    .btn-login:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-login:disabled { background: #ccc; cursor: not-allowed; }
+    
+    .tips-text { font-size: 12px; color: #999; text-align: center; margin-top: 20px; line-height: 1.6; }
+    
+    .employee-list { max-height: 200px; overflow-y: auto; border: 1px solid #ebedf0; border-radius: 10px; margin-top: 8px; }
+    .employee-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+    .employee-item:last-child { border-bottom: none; }
+    .employee-item:active { background: #f7f8fa; }
+    .employee-item.selected { background: rgba(25,137,250,0.1); }
+    .employee-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+    .employee-info { flex: 1; }
+    .employee-name { font-size: 14px; font-weight: 600; color: #333; }
+    .employee-role { font-size: 12px; color: #999; }
+    
+    .notice-box { background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; padding: 12px; margin-top: 12px; text-align: center; }
+    .notice-box .notice-icon { font-size: 20px; margin-bottom: 4px; }
+    .notice-box .notice-text { font-size: 13px; color: #ad6800; }
+    
+    .admin-hint { background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center; }
+    .admin-hint .hint-text { font-size: 13px; color: #1890ff; }
+    
+    .van-toast { border-radius: 8px !important; }
+    
+    /* 管理员创建员工弹窗 */
+    .create-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .create-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 340px; max-height: 80vh; overflow-y: auto; }
+    .create-modal-header { padding: 16px; text-align: center; border-bottom: 1px solid #ebedf0; font-size: 16px; font-weight: 600; }
+    .create-modal-body { padding: 16px; }
+    .create-modal-footer { padding: 12px 16px; display: flex; gap: 12px; border-top: 1px solid #ebedf0; }
+    .create-modal-footer button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-cancel { background: #f7f8fa; border: 1px solid #ebedf0; color: #666; }
+    .btn-confirm { background: #1989fa; border: none; color: #fff; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="login-container">
+      <div class="login-header">
+        <div class="login-logo">聚</div>
+        <div class="login-title">聚达勘察助手</div>
+        <div class="login-subtitle">标准化施工质检管理系统</div>
+      </div>
+      
+      <div class="login-card">
+        <!-- Tab切换 - 管理员可见注册Tab -->
+        <div class="tab-container">
+          <div class="tab-item" :class="{ active: activeTab === 'login' }" @click="activeTab = 'login'">登录</div>
+          <div v-if="isAdmin" class="tab-item" :class="{ active: activeTab === 'register' }" @click="activeTab = 'register'">添加员工</div>
+        </div>
+        
+        <!-- 登录表单 -->
+        <div v-if="activeTab === 'login'">
+          <div class="form-group">
+            <label class="form-label">手机号</label>
+            <input type="tel" class="form-input" v-model="loginForm.phone" placeholder="请输入手机号" maxlength="11" @input="onPhoneInput">
+          </div>
+          
+          <!-- 管理员显示密码输入 -->
+          <div v-if="isAdminLogin" class="form-group">
+            <label class="form-label">密码</label>
+            <input type="password" class="form-input" v-model="loginForm.password" placeholder="请输入密码" maxlength="4">
+          </div>
+          
+          <!-- 管理员提示 -->
+          <div v-if="isAdminLogin" class="admin-hint">
+            <div class="hint-text">👔 管理员登录，请输入密码</div>
+          </div>
+          
+          <!-- 普通员工选择登录 -->
+          <div v-else class="form-group">
+            <label class="form-label">选择员工</label>
+            <div class="employee-list" v-if="activeEmployees.length > 0">
+              <div v-for="emp in activeEmployees" :key="emp.id" class="employee-item" :class="{ selected: selectedEmployeeId === emp.id }" @click="selectEmployee(emp)">
+                <div class="employee-avatar">{{ emp.name.charAt(0) }}</div>
+                <div class="employee-info">
+                  <div class="employee-name">{{ emp.name }}</div>
+                  <div class="employee-role">{{ getRoleText(emp.role) }} · {{ emp.employeeId }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="notice-box">
+              <div class="notice-icon">📋</div>
+              <div class="notice-text">暂无员工账号</div>
+            </div>
+          </div>
+          
+          <!-- 账号状态提示 -->
+          <div v-if="accountStatus.message" class="notice-box">
+            <div class="notice-icon">⚠️</div>
+            <div class="notice-text">{{ accountStatus.message }}</div>
+          </div>
+          
+          <button class="btn-login" @click="handleLogin" :disabled="!canLogin">
+            {{ isAdminLogin ? '管理员登录' : '员工登录' }}
+          </button>
+          
+          <div class="tips-text">
+            <p>👔 管理员：13800138000 / 密码：1234</p>
+            <p style="margin-top: 8px;" v-if="!isAdminLogin">📱 员工账号由管理员创建，无需密码</p>
+          </div>
+        </div>
+        
+        <!-- 添加员工表单（仅管理员可见） -->
+        <div v-else>
+          <div class="form-group">
+            <label class="form-label">手机号（作为登录账号）</label>
+            <input type="tel" class="form-input" v-model="createForm.phone" placeholder="请输入手机号" maxlength="11">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">姓名</label>
+            <input type="text" class="form-input" v-model="createForm.name" placeholder="请输入员工姓名">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">选择角色</label>
+            <div class="role-selector">
+              <div class="role-item" :class="{ selected: createForm.role === 'surveyor' }" @click="createForm.role = 'surveyor'">
+                <div class="role-icon">🔍</div>
+                <div class="role-name">勘察员</div>
+              </div>
+              <div class="role-item" :class="{ selected: createForm.role === 'worker' }" @click="createForm.role = 'worker'">
+                <div class="role-icon">🔧</div>
+                <div class="role-name">施工员</div>
+              </div>
+              <div class="role-item" :class="{ selected: createForm.role === 'reviewer' }" @click="createForm.role = 'reviewer'">
+                <div class="role-icon">✅</div>
+                <div class="role-name">验收员</div>
+              </div>
+            </div>
+          </div>
+          
+          <button class="btn-login" @click="handleCreateEmployee" :disabled="!canCreate">创建员工账号</button>
+          
+          <div class="tips-text">
+            <p>💡 员工账号创建后自动启用，无需密码即可登录</p>
+            <p style="margin-top: 8px;">📋 创建完成后让员工使用此手机号登录</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 创建成功弹窗 -->
+    <div v-if="showSuccessModal" class="create-modal-overlay" @click="showSuccessModal = false">
+      <div class="create-modal" @click.stop>
+        <div class="create-modal-header">✅ 创建成功</div>
+        <div class="create-modal-body">
+          <p style="text-align: center; margin-bottom: 16px;">员工账号已创建</p>
+          <div style="background: #f7f8fa; border-radius: 8px; padding: 16px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 600; color: #1989fa;">{{ createdEmployee?.name }}</div>
+            <div style="font-size: 14px; color: #666; margin-top: 8px;">手机号：{{ createdEmployee?.employeeId }}</div>
+            <div style="font-size: 14px; color: #999; margin-top: 4px;">角色：{{ getRoleText(createdEmployee?.role) }}</div>
+          </div>
+          <p style="text-align: center; margin-top: 16px; font-size: 13px; color: #999;">请告知该员工使用此手机号登录</p>
+        </div>
+        <div class="create-modal-footer">
+          <button class="btn-cancel" @click="continueAdding">继续添加</button>
+          <button class="btn-confirm" @click="showSuccessModal = false">完成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+  <script src="../js/store.js"></script>
+  <script>
+    const { createApp, ref, computed, onMounted } = Vue;
+    const { Toast } = vant;
+    
+    // 确保Store已初始化
+    if (!window.Store) {
+      console.error('Store未加载');
+    }
+    Store.initDefaultAdmin();
+    
+    const app = createApp({
+      setup() {
+        const activeTab = ref('login');
+        const selectedEmployeeId = ref('');
+        const activeEmployees = ref([]);
+        const isAdmin = ref(false);
+        const isAdminLogin = ref(false);
+        const accountStatus = ref({});
+        const showSuccessModal = ref(false);
+        const createdEmployee = ref(null);
+        
+        const loginForm = ref({ phone: '', password: '' });
+        const createForm = ref({ phone: '', name: '', role: 'worker' });
+        
+        // 计算是否为管理员输入
+        const checkAdminLogin = () => {
+          const check = Store.checkEmployeeExists(loginForm.value.phone);
+          isAdminLogin.value = check.isAdmin;
+          accountStatus.value = {};
+        };
+        
+        // 输入手机号时检查
+        const onPhoneInput = () => {
+          accountStatus.value = {};
+          isAdminLogin.value = false;
+          selectedEmployeeId.value = '';
+          
+          if (loginForm.value.phone.length === 11) {
+            checkAdminLogin();
+          }
+        };
+        
+        // 加载员工列表
+        const loadEmployees = () => {
+          activeEmployees.value = Store.getActiveEmployees();
+          // 检查当前登录用户是否为管理员
+          const currentUser = Store.getCurrentUser();
+          isAdmin.value = currentUser?.role === Store.ROLES.ADMIN;
+        };
+        
+        // 计算是否可以登录
+        const canLogin = computed(() => {
+          if (!loginForm.value.phone) return false;
+          if (isAdminLogin.value && !loginForm.value.password) return false;
+          if (!isAdminLogin.value && !selectedEmployeeId.value) return false;
+          return true;
+        });
+        
+        // 计算是否可以创建
+        const canCreate = computed(() => {
+          if (!createForm.value.phone || createForm.value.phone.length !== 11) return false;
+          if (!createForm.value.name) return false;
+          if (!createForm.value.role) return false;
+          return true;
+        });
+        
+        // 选择员工
+        const selectEmployee = (emp) => {
+          selectedEmployeeId.value = emp.id;
+          loginForm.value.phone = emp.employeeId;
+        };
+        
+        // 获取角色文本
+        const getRoleText = (role) => Store.getRoleText(role);
+        
+        // 登录
+        const handleLogin = () => {
+          if (!canLogin.value) {
+            alert('请填写完整登录信息');
+            return;
+          }
+          
+          try {
+            // 管理员登录
+            if (isAdminLogin.value) {
+              const result = Store.login(loginForm.value.phone, loginForm.value.password);
+              if (result.success) {
+                alert('登录成功！即将跳转...');
+                setTimeout(() => { window.location.href = '../index.html'; }, 500);
+              } else {
+                alert(result.message || '登录失败');
+              }
+              return;
+            }
+            
+            // 员工登录（免密）
+            const result = Store.login(selectedEmployeeId.value, '');
+            if (result.success) {
+              alert('登录成功！即将跳转...');
+              setTimeout(() => { window.location.href = '../index.html'; }, 500);
+            } else {
+              alert(result.message || '登录失败');
+            }
+          } catch(e) {
+            alert('登录出错：' + e.message);
+          }
+        };
+        
+        // 创建员工
+        const handleCreateEmployee = () => {
+          if (!canCreate.value) {
+            Toast.fail('请填写完整信息');
+            return;
+          }
+          
+          const result = Store.createEmployeeByAdmin({
+            employeeId: createForm.value.phone,
+            name: createForm.value.name,
+            role: createForm.value.role
+          });
+          
+          if (result.success) {
+            createdEmployee.value = result.employee;
+            showSuccessModal.value = true;
+            // 重置表单
+            createForm.value = { phone: '', name: '', role: 'worker' };
+            // 刷新员工列表
+            loadEmployees();
+          } else {
+            Toast.fail(result.message);
+          }
+        };
+        
+        // 继续添加
+        const continueAdding = () => {
+          showSuccessModal.value = false;
+          createForm.value = { phone: '', name: '', role: 'worker' };
+        };
+        
+        onMounted(() => {
+          loadEmployees();
+        });
+        
+        return {
+          activeTab,
+          selectedEmployeeId,
+          activeEmployees,
+          isAdmin,
+          isAdminLogin,
+          accountStatus,
+          showSuccessModal,
+          createdEmployee,
+          loginForm,
+          createForm,
+          canLogin,
+          canCreate,
+          selectEmployee,
+          getRoleText,
+          handleLogin,
+          handleCreateEmployee,
+          continueAdding,
+          onPhoneInput,
+          ROLES: Store.ROLES
+        };
+      }
+    });
+    
+    app.use(vant);
+    app.mount('#app');
+  </script>
+</body>
+</html>

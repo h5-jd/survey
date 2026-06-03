@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <title>报价计算器 - 聚达勘察助手</title>
+  <link rel="stylesheet" href="../css/app.css">
+  <style>
+    /* 报价计算器专用样式 */
+    .page-quotation {
+      padding-bottom: 80px;
+    }
+    
+    /* 项目信息区 */
+    .project-info-card {
+      background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .project-info-card .customer-name {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .project-info-card .info-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+    
+    .project-info-card .info-row span:first-child {
+      min-width: 60px;
+    }
+    
+    /* 分项列表 */
+    .quotation-items {
+      margin-bottom: 16px;
+    }
+    
+    .quotation-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      position: relative;
+    }
+    
+    .quotation-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .quotation-item-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .quotation-item-delete {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f7f8fa;
+      color: #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .quotation-item-delete:active {
+      background: #fee;
+      color: #ee0a24;
+    }
+    
+    .quotation-item-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .quotation-item-body .form-group {
+      margin-bottom: 0;
+    }
+    
+    .quotation-item-body .form-input,
+    .quotation-item-body .form-select {
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    
+    /* 系数选项区 */
+    .coefficient-section {
+      grid-column: 1 / -1;
+      background: #f7f8fa;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    
+    .coefficient-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .coefficient-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .coefficient-label {
+      font-size: 13px;
+      color: #666;
+      min-width: 70px;
+    }
+    
+    .coefficient-select {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #dcdee0;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 28px;
+    }
+    
+    .coefficient-value {
+      font-size: 13px;
+      color: #ee0a24;
+      font-weight: 600;
+      min-width: 40px;
+      text-align: right;
+    }
+    
+    .coefficient-warning {
+      font-size: 11px;
+      color: #ff976a;
+      margin-top: 4px;
+    }
+    
+    /* 小计展示 */
+    .item-subtotal {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: linear-gradient(135deg, #fff7e6 0%, #fff3e6 100%);
+      border-radius: 8px;
+      margin-top: 4px;
+      border: 1px solid #ffd591;
+    }
+    
+    .item-subtotal-label {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .item-subtotal-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ee0a24;
+    }
+    
+    /* 添加分项按钮 */
+    .add-item-btn {
+      width: 100%;
+      padding: 16px;
+      border: 2px dashed #dcdee0;
+      border-radius: 12px;
+      background: #fff;
+      color: #1989fa;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    
+    .add-item-btn:active {
+      border-color: #1989fa;
+      background: #e6f4ff;
+    }
+    
+    /* 汇总区 */
+    .summary-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+    
+    .summary-label {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .summary-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .summary-total {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ee0a24;
+    }
+    
+    .summary-deduction {
+      color: #07c160;
+    }
+    
+    .summary-deduction::before {
+      content: '- ';
+    }
+    
+    /* 勘察费抵扣提示 */
+    .fee-deduction-tip {
+      background: #f0f9eb;
+      border: 1px solid #d4ebd4;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #07c160;
+    }
+    
+    .fee-deduction-tip input {
+      width: 18px;
+      height: 18px;
+      accent-color: #07c160;
+    }
+    
+    /* 底部操作栏 */
+    .bottom-action-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 12px;
+      z-index: 100;
+    }
+    
+    .bottom-action-bar .btn {
+      flex: 1;
+      padding: 14px 16px;
+    }
+    
+    .btn-preview {
+      background: #fff;
+      border: 1px solid #dcdee0;
+      color: #333;
+    }
+    
+    /* 部位选择弹窗 */
+    .item-picker-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: flex-end;
+    }
+    
+    .item-picker {
+      width: 100%;
+      max-height: 70vh;
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+      overflow: hidden;
+      animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    
+    .picker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .picker-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .picker-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f7f8fa;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .picker-categories {
+      padding: 12px;
+      max-height: calc(70vh - 60px);
+      overflow-y: auto;
+    }
+    
+    .picker-category {
+      margin-bottom: 16px;
+    }
+    
+    .picker-category-title {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .picker-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .picker-item {
+      padding: 10px 16px;
+      background: #f7f8fa;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #333;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .picker-item:active {
+      background: #e6f4ff;
+      border-color: #1989fa;
+      color: #1989fa;
+    }
+    
+    /* 报价单预览 */
+    .preview-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #f7f8fa;
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    
+    .preview-header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f0f0f0;
+      z-index: 10;
+    }
+    
+    .preview-back {
+      font-size: 24px;
+      color: #333;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    
+    .preview-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .preview-content {
+      padding: 16px;
+    }
+    
+    .quotation-document {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    .quotation-doc-header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #1989fa;
+    }
+    
+    .quotation-doc-company {
+      font-size: 22px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .quotation-doc-title {
+      font-size: 18px;
+      color: #1989fa;
+      margin-bottom: 4px;
+    }
+    
+    .quotation-doc-date {
+      font-size: 12px;
+      color: #999;
+    }
+    
+    .quotation-doc-info {
+      margin-bottom: 20px;
+    }
+    
+    .quotation-doc-info-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      padding-left: 8px;
+      border-left: 3px solid #1989fa;
+    }
+    
+    .quotation-doc-info-row {
+      display: flex;
+      padding: 4px 0;
+      font-size: 14px;
+    }
+    
+    .quotation-doc-info-label {
+      width: 70px;
+      color: #666;
+    }
+    
+    .quotation-doc-info-value {
+      flex: 1;
+      color: #333;
+    }
+    
+    /* 报价明细表格 */
+    .quotation-doc-items {
+      margin-bottom: 20px;
+    }
+    
+    .quotation-item-block {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #fafafa;
+      border-radius: 8px;
+    }
+    
+    .quotation-item-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .quotation-item-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .quotation-item-amount {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    /* 系数明细展示 */
+    .coefficient-detail {
+      padding: 8px 12px;
+      background: #fff7e6;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #ad6800;
+    }
+    
+    .coefficient-detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .coefficient-detail-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .coefficient-detail-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .coefficient-detail-value {
+      font-weight: 600;
+    }
+    
+    .coefficient-formula {
+      padding: 8px 12px;
+      background: #e6f4ff;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #1890ff;
+    }
+    
+    .quotation-item-calc {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-top: 1px dashed #eee;
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .quotation-item-subtotal {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ee0a24;
+    }
+    
+    /* 汇总 */
+    .quotation-doc-footer {
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    .quotation-doc-total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+    
+    .quotation-doc-total-final {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ee0a24;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 2px solid #ee0a24;
+    }
+    
+    .quotation-doc-validity {
+      margin-top: 20px;
+      padding: 12px;
+      background: #fff7e6;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #ad6800;
+    }
+    
+    .quotation-doc-company-info {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+    }
+    
+    /* 空状态 */
+    .empty-items {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    
+    .empty-items-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .empty-items-text {
+      font-size: 14px;
+    }
+    
+    /* 隐藏原生select箭头 */
+    .form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+    
+    /* 系数说明图标 */
+    .coefficient-hint {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      background: #1989fa;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 10px;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="page-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <span class="back-btn" onclick="closeQuotation()">←</span>
+      <h1>💰 报价计算器</h1>
+      <span style="width: 30px;"></span>
+    </div>
+    
+    <div class="page-content page-quotation">
+      <!-- 项目基本信息 -->
+      <div class="project-info-card">
+        <div class="customer-name">{{ quotation.customerName || '未指定客户' }}</div>
+        <div class="info-row" v-if="quotation.customerPhone">
+          <span>📞</span>
+          <span>{{ quotation.customerPhone }}</span>
+        </div>
+        <div class="info-row" v-if="quotation.customerAddress">
+          <span>📍</span>
+          <span>{{ quotation.customerAddress }}</span>
+        </div>
+        <div class="info-row">
+          <span>📅</span>
+          <span>{{ currentDate }}</span>
+        </div>
+      </div>
+      
+      <!-- 分项报价区 -->
+      <div class="card">
+        <div class="card-title">📋 分项报价</div>
+        
+        <div class="quotation-items" v-if="quotation.items && quotation.items.length > 0">
+          <div class="quotation-item" v-for="(item, index) in quotation.items" :key="index">
+            <div class="quotation-item-header">
+              <span class="quotation-item-title">{{ getItemName(item.itemId) }}</span>
+              <button class="quotation-item-delete" @click="removeItem(index)">×</button>
+            </div>
+            
+            <div class="quotation-item-body">
+              <div class="form-group">
+                <label class="form-label">部位</label>
+                <select class="form-input form-select" v-model="item.itemId" @change="onItemChange(item)">
+                  <option value="">请选择部位</option>
+                  <optgroup label="按面积">
+                    <option v-for="i in priceList.BY_AREA" :key="i.id" :value="i.id">{{ i.name }}</option>
+                  </optgroup>
+                  <optgroup label="按延长米">
+                    <option v-for="i in priceList.BY_METER" :key="i.id" :value="i.id">{{ i.name }}</option>
+                  </optgroup>
+                  <optgroup label="按处">
+                    <option v-for="i in priceList.BY_PIECE" :key="i.id" :value="i.id">{{ i.name }}</option>
+                  </optgroup>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">工艺等级</label>
+                <select class="form-input form-select" v-model="item.grade" @change="onGradeChange(item)">
+                  <option value="basic">基础方案</option>
+                  <option value="standard">标准方案（推荐）</option>
+                  <option value="premium">优质方案</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">数量</label>
+                <input type="number" class="form-input" v-model.number="item.quantity" 
+                       :placeholder="'单位: ' + getItemUnit(item.itemId)" min="0" step="0.1">
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">基价（元/<span v-html="getItemUnitHtml(item.itemId)"></span>）</label>
+                <input type="number" class="form-input" v-model.number="item.basePrice" min="0" step="1">
+              </div>
+              
+              <!-- 清理厚度选项（仅屋面类显示） -->
+              <div class="coefficient-section" v-if="supportsThickness(item.itemId)">
+                <div class="coefficient-row">
+                  <span class="coefficient-label">🏗️ 清理厚度</span>
+                  <select class="coefficient-select" v-model="item.thicknessId" @change="onCoefficientChange(item)">
+                    <option v-for="t in priceList.THICKNESS_COEFFICIENTS" :key="t.id" :value="t.id">
+                      {{ t.label }} - {{ t.desc }}
+                    </option>
+                  </select>
+                  <span class="coefficient-value">×{{ getThicknessCoeff(item.thicknessId) }}</span>
+                </div>
+                <div class="coefficient-warning" v-if="isThicknessEvaluation(item.thicknessId)">
+                  ⚠️ 需现场评估确认最终价格
+                </div>
+              </div>
+              
+              <!-- 高空作业选项（外墙/窗框类显示） -->
+              <div class="coefficient-section" v-if="supportsHeight(item.itemId)">
+                <div class="coefficient-row">
+                  <span class="coefficient-label">🏢 作业高度</span>
+                  <select class="coefficient-select" v-model="item.heightId" @change="onCoefficientChange(item)">
+                    <option v-for="h in priceList.HEIGHT_COEFFICIENTS" :key="h.id" :value="h.id">
+                      {{ h.label }}（{{ h.desc }}）
+                    </option>
+                  </select>
+                  <span class="coefficient-value">×{{ getHeightCoeff(item.heightId) }}</span>
+                </div>
+                <div class="coefficient-warning" v-if="isHeightEvaluation(item.heightId)">
+                  ⚠️ 需现场评估确认最终价格
+                </div>
+              </div>
+              
+              <!-- 最终单价和小计 -->
+              <div class="item-subtotal">
+                <div>
+                  <div class="item-subtotal-label">最终单价：¥{{ getFinalUnitPrice(item).toFixed(2) }}/{{ getItemUnit(item.itemId) }}</div>
+                  <div style="font-size: 11px; color: #999; margin-top: 2px;">
+                    {{ getPriceFormula(item) }}
+                  </div>
+                </div>
+                <span class="item-subtotal-value">¥{{ calculateSubtotal(item).toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="empty-items" v-else>
+          <div class="empty-items-icon">📝</div>
+          <div class="empty-items-text">点击下方按钮添加报价分项</div>
+        </div>
+        
+        <button class="add-item-btn" @click="showItemPicker = true">
+          <span>➕</span>
+          <span>添加分项</span>
+        </button>
+      </div>
+      
+      <!-- 勘察费抵扣 -->
+      <div class="fee-deduction-tip">
+        <input type="checkbox" id="feeDeduction" v-model="quotation.hasDeduction" @change="saveQuotation">
+        <label for="feeDeduction">
+          勘察费抵扣：已付¥100勘察费可抵扣报价
+        </label>
+      </div>
+      
+      <!-- 汇总区 -->
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="summary-label">分项合计</span>
+          <span class="summary-value">¥{{ subtotal.toFixed(2) }}</span>
+        </div>
+        
+        <div class="summary-row" v-if="quotation.hasDeduction">
+          <span class="summary-label">勘察费抵扣</span>
+          <span class="summary-value summary-deduction">¥100.00</span>
+        </div>
+        
+        <div class="summary-row">
+          <span class="summary-label" style="font-weight: 600; font-size: 16px;">最终报价</span>
+          <span class="summary-total">¥{{ finalTotal.toFixed(2) }}</span>
+        </div>
+      </div>
+      
+      <!-- 备注 -->
+      <div class="card">
+        <div class="card-title">📝 备注</div>
+        <textarea class="form-input" v-model="quotation.notes" 
+                  placeholder="可选：添加备注信息..." rows="3" @blur="saveQuotation"></textarea>
+      </div>
+    </div>
+    
+    <!-- 底部操作栏 -->
+    <div class="bottom-action-bar">
+      <button class="btn btn-preview" @click="showPreview = true">📋 预览报价单</button>
+      <button class="btn btn-primary" @click="saveAndShare">💾 保存报价</button>
+    </div>
+    
+    <!-- 部位选择弹窗 -->
+    <div class="item-picker-overlay" v-if="showItemPicker" @click="showItemPicker = false">
+      <div class="item-picker" @click.stop>
+        <div class="picker-header">
+          <span class="picker-title">选择部位</span>
+          <button class="picker-close" @click="showItemPicker = false">×</button>
+        </div>
+        <div class="picker-categories">
+          <div class="picker-category" v-for="cat in priceList.getAllCategories()" :key="cat.id">
+            <div class="picker-category-title">{{ cat.icon }} {{ cat.name }}</div>
+            <div class="picker-items">
+              <button class="picker-item" v-for="item in cat.items" :key="item.id" 
+                      @click="addItem(item.id)">
+                {{ item.name }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 报价单预览 -->
+    <div class="preview-overlay" v-if="showPreview">
+      <div class="preview-header">
+        <span class="preview-back" @click="showPreview = false">←</span>
+        <span class="preview-title">报价单预览</span>
+        <span style="width: 30px;"></span>
+      </div>
+      
+      <div class="preview-content">
+        <div class="quotation-document">
+          <div class="quotation-doc-header">
+            <div class="quotation-doc-company">珠海聚达建筑工程有限公司</div>
+            <div class="quotation-doc-title">防水工程报价单</div>
+            <div class="quotation-doc-date">报价日期：{{ currentDate }}</div>
+          </div>
+          
+          <div class="quotation-doc-info">
+            <div class="quotation-doc-info-title">客户信息</div>
+            <div class="quotation-doc-info-row">
+              <span class="quotation-doc-info-label">客户姓名</span>
+              <span class="quotation-doc-info-value">{{ quotation.customerName || '-' }}</span>
+            </div>
+            <div class="quotation-doc-info-row">
+              <span class="quotation-doc-info-label">联系电话</span>
+              <span class="quotation-doc-info-value">{{ quotation.customerPhone || '-' }}</span>
+            </div>
+            <div class="quotation-doc-info-row">
+              <span class="quotation-doc-info-label">施工地址</span>
+              <span class="quotation-doc-info-value">{{ quotation.customerAddress || '-' }}</span>
+            </div>
+          </div>
+          
+          <!-- 分项明细 -->
+          <div class="quotation-doc-items">
+            <div class="quotation-doc-info-title">报价明细</div>
+            
+            <div class="quotation-item-block" v-for="(item, index) in quotation.items" :key="index">
+              <!-- 主行：名称+金额 -->
+              <div class="quotation-item-main">
+                <span class="quotation-item-name">{{ getItemName(item.itemId) }}（{{ getGradeName(item.grade) }}）</span>
+                <span class="quotation-item-amount">¥{{ calculateSubtotal(item).toFixed(2) }}</span>
+              </div>
+              
+              <!-- 系数明细 -->
+              <div class="coefficient-detail" v-if="hasCoefficients(item)">
+                <div class="coefficient-detail-row">
+                  <span class="coefficient-detail-label">📋 计算明细</span>
+                </div>
+                
+                <div class="coefficient-formula" v-if="hasCoefficients(item)">
+                  {{ getPriceFormula(item) }}
+                </div>
+                
+                <div class="coefficient-detail-row" v-if="supportsThickness(item.itemId) && item.thicknessId">
+                  <span>清理厚度 {{ getThicknessLabel(item.thicknessId) }}</span>
+                  <span class="coefficient-detail-value">×{{ getThicknessCoeff(item.thicknessId) }}</span>
+                </div>
+                
+                <div class="coefficient-detail-row" v-if="supportsHeight(item.itemId) && item.heightId">
+                  <span>高空作业 {{ getHeightLabel(item.heightId) }}</span>
+                  <span class="coefficient-detail-value">×{{ getHeightCoeff(item.heightId) }}</span>
+                </div>
+              </div>
+              
+              <!-- 计算过程 -->
+              <div class="quotation-item-calc">
+                <span>单价 ¥{{ getFinalUnitPrice(item).toFixed(2) }}/{{ getItemUnit(item.itemId) }} × {{ item.quantity }}{{ getItemUnit(item.itemId) }}</span>
+                <span class="quotation-item-subtotal">¥{{ calculateSubtotal(item).toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 汇总 -->
+          <div class="quotation-doc-footer">
+            <div class="quotation-doc-total-row">
+              <span>分项合计</span>
+              <span>¥{{ subtotal.toFixed(2) }}</span>
+            </div>
+            <div class="quotation-doc-total-row" v-if="quotation.hasDeduction">
+              <span>勘察费抵扣</span>
+              <span style="color: #07c160;">-¥100.00</span>
+            </div>
+            <div class="quotation-doc-total-row quotation-doc-total-final">
+              <span>最终报价</span>
+              <span>¥{{ finalTotal.toFixed(2) }}</span>
+            </div>
+          </div>
+          
+          <!-- 备注 -->
+          <div v-if="quotation.notes" style="margin-top: 16px; padding: 12px; background: #f7f8fa; border-radius: 8px; font-size: 13px;">
+            <strong>备注：</strong>{{ quotation.notes }}
+          </div>
+          
+          <div class="quotation-doc-validity">
+            ⚠️ 本报价单有效期为{{ validityDays }}天，自报价之日起计算。最终价格以实际施工面积/长度为准，如有变动另行通知。
+          </div>
+          
+          <div class="quotation-doc-company-info">
+            <p>珠海聚达建筑工程有限公司</p>
+            <p>电话：0756-8866780 / 13411435326</p>
+            <p>地址：珠海市拱北港昌路341号3楼333室</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Toast -->
+    <div v-if="toast.show" class="toast">{{ toast.message }}</div>
+  </div>
+  
+  <!-- 加载依赖 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="../js/price-list.js"></script>
+  <script src="../js/store.js"></script>
+  
+  <script>
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+    
+    const QuotationApp = {
+      setup() {
+        // 状态
+        const quotation = reactive({
+          projectId: null,
+          customerName: '',
+          customerPhone: '',
+          customerAddress: '',
+          items: [],
+          hasDeduction: false,
+          notes: '',
+          createTime: new Date().toISOString()
+        });
+        
+        const showItemPicker = ref(false);
+        const showPreview = ref(false);
+        const toast = reactive({ show: false, message: '' });
+        
+        // 价格列表
+        const priceList = PriceList;
+        
+        // 报价有效期（天）
+        const validityDays = 30;
+        
+        // 当前日期
+        const currentDate = computed(() => {
+          const d = new Date();
+          return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+        });
+        
+        // 分项合计
+        const subtotal = computed(() => {
+          return quotation.items.reduce((sum, item) => {
+            return sum + calculateSubtotal(item);
+          }, 0);
+        });
+        
+        // 最终报价
+        const finalTotal = computed(() => {
+          let total = subtotal.value;
+          if (quotation.hasDeduction) {
+            total = Math.max(0, total - 100);
+          }
+          return total;
+        });
+        
+        // 获取部位名称
+        const getItemName = (itemId) => {
+          const item = priceList.getItemById(itemId);
+          return item ? item.name : '-';
+        };
+        
+        // 获取单位
+        const getItemUnit = (itemId) => {
+          const item = priceList.getItemById(itemId);
+          return item ? item.unit : '-';
+        };
+        
+        // 获取单位HTML
+        const getItemUnitHtml = (itemId) => {
+          const item = priceList.getItemById(itemId);
+          return item ? item.unit : '-';
+        };
+        
+        // 获取工艺等级名称
+        const getGradeName = (grade) => {
+          const config = priceList.GRADE_CONFIG[grade];
+          return config ? config.name : grade;
+        };
+        
+        // 检查是否支持清理厚度
+        const supportsThickness = (itemId) => {
+          return priceList.supportsThickness(itemId);
+        };
+        
+        // 检查是否支持高空作业
+        const supportsHeight = (itemId) => {
+          return priceList.supportsHeight(itemId);
+        };
+        
+        // 获取清理厚度系数
+        const getThicknessCoeff = (thicknessId) => {
+          return priceList.getThicknessCoefficient(thicknessId);
+        };
+        
+        // 获取高空作业系数
+        const getHeightCoeff = (heightId) => {
+          return priceList.getHeightCoefficient(heightId);
+        };
+        
+        // 获取清理厚度标签
+        const getThicknessLabel = (thicknessId) => {
+          const list = priceList.THICKNESS_COEFFICIENTS;
+          const item = list.find(t => t.id === thicknessId);
+          return item ? item.label : '';
+        };
+        
+        // 获取高空作业标签
+        const getHeightLabel = (heightId) => {
+          const list = priceList.HEIGHT_COEFFICIENTS;
+          const item = list.find(h => h.id === heightId);
+          return item ? item.label : '';
+        };
+        
+        // 检查是否需要现场评估
+        const isThicknessEvaluation = (thicknessId) => {
+          const list = priceList.THICKNESS_COEFFICIENTS;
+          const item = list.find(t => t.id === thicknessId);
+          return item && item.evaluation;
+        };
+        
+        const isHeightEvaluation = (heightId) => {
+          const list = priceList.HEIGHT_COEFFICIENTS;
+          const item = list.find(h => h.id === heightId);
+          return item && item.evaluation;
+        };
+        
+        // 检查是否有系数
+        const hasCoefficients = (item) => {
+          const thicknessCoeff = supportsThickness(item.itemId) ? getThicknessCoeff(item.thicknessId) : 1.0;
+          const heightCoeff = supportsHeight(item.itemId) ? getHeightCoeff(item.heightId) : 1.0;
+          return thicknessCoeff > 1.0 || heightCoeff > 1.0;
+        };
+        
+        // 获取价格计算公式
+        const getPriceFormula = (item) => {
+          const parts = [];
+          
+          // 基价
+          parts.push(`基价¥${item.basePrice || 0}`);
+          
+          // 清理厚度系数
+          if (supportsThickness(item.itemId) && item.thicknessId) {
+            const coeff = getThicknessCoeff(item.thicknessId);
+            if (coeff > 1.0) {
+              parts.push(`厚度×${coeff}`);
+            }
+          }
+          
+          // 高空作业系数
+          if (supportsHeight(item.itemId) && item.heightId) {
+            const coeff = getHeightCoeff(item.heightId);
+            if (coeff > 1.0) {
+              parts.push(`高空×${coeff}`);
+            }
+          }
+          
+          return parts.join(' × ');
+        };
+        
+        // 计算最终单价
+        const getFinalUnitPrice = (item) => {
+          const thicknessCoeff = supportsThickness(item.itemId) ? getThicknessCoeff(item.thicknessId) : 1.0;
+          const heightCoeff = supportsHeight(item.itemId) ? getHeightCoeff(item.heightId) : 1.0;
+          return (item.basePrice || 0) * thicknessCoeff * heightCoeff;
+        };
+        
+        // 计算小计
+        const calculateSubtotal = (item) => {
+          return getFinalUnitPrice(item) * (item.quantity || 0);
+        };
+        
+        // 添加分项
+        const addItem = (itemId) => {
+          const itemInfo = priceList.getItemById(itemId);
+          if (!itemInfo) return;
+          
+          quotation.items.push({
+            itemId: itemId,
+            grade: 'standard',
+            quantity: 1,
+            basePrice: itemInfo.prices.standard,
+            thicknessId: 'thickness_0_5',
+            heightId: 'height_0_10'
+          });
+          
+          showItemPicker.value = false;
+          saveQuotation();
+        };
+        
+        // 删除分项
+        const removeItem = (index) => {
+          quotation.items.splice(index, 1);
+          saveQuotation();
+        };
+        
+        // 部位变更
+        const onItemChange = (item) => {
+          const itemInfo = priceList.getItemById(item.itemId);
+          if (itemInfo) {
+            item.basePrice = itemInfo.prices[item.grade] || 0;
+            // 重置系数
+            if (!itemInfo.supportThickness) {
+              item.thicknessId = 'thickness_0_5';
+            }
+            if (!itemInfo.supportHeight) {
+              item.heightId = 'height_0_10';
+            }
+          }
+          saveQuotation();
+        };
+        
+        // 工艺等级变更
+        const onGradeChange = (item) => {
+          const itemInfo = priceList.getItemById(item.itemId);
+          if (itemInfo) {
+            item.basePrice = itemInfo.prices[item.grade] || 0;
+          }
+          saveQuotation();
+        };
+        
+        // 系数变更
+        const onCoefficientChange = (item) => {
+          saveQuotation();
+        };
+        
+        // 显示Toast
+        const showToast = (message) => {
+          toast.message = message;
+          toast.show = true;
+          setTimeout(() => {
+            toast.show = false;
+          }, 2000);
+        };
+        
+        // 保存报价
+        const saveQuotation = () => {
+          try {
+            const quotations = Store.getQuotations() || [];
+            const existingIndex = quotations.findIndex(q => q.projectId === quotation.projectId);
+            
+            const quotationData = {
+              ...JSON.parse(JSON.stringify(quotation)),
+              subtotal: subtotal.value,
+              finalTotal: finalTotal.value,
+              updateTime: new Date().toISOString()
+            };
+            
+            if (existingIndex >= 0) {
+              quotations[existingIndex] = quotationData;
+            } else {
+              quotations.unshift(quotationData);
+            }
+            
+            Store.saveQuotations(quotations);
+            
+            // 同时更新项目的报价信息
+            if (quotation.projectId) {
+              Store.updateProject(quotation.projectId, {
+                quote: quotationData.finalTotal,
+                quotationId: quotation.projectId
+              });
+            }
+          } catch (e) {
+            console.error('保存报价失败:', e);
+          }
+        };
+        
+        // 保存并分享
+        const saveAndShare = () => {
+          saveQuotation();
+          showToast('报价已保存');
+        };
+        
+        // 关闭页面
+        const closeQuotation = () => {
+          saveQuotation();
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.href = 'index.html';
+          }
+        };
+        
+        // 从URL参数加载
+        const loadFromParams = () => {
+          const params = new URLSearchParams(window.location.search);
+          const projectId = params.get('projectId');
+          const inspectionId = params.get('inspectionId');
+          
+          if (projectId) {
+            quotation.projectId = projectId;
+            const project = Store.getProject(projectId);
+            if (project) {
+              quotation.customerName = project.customerName || '';
+              quotation.customerPhone = project.customerPhone || '';
+              quotation.customerAddress = project.customerAddress || '';
+            }
+          }
+          
+          if (inspectionId) {
+            const inspection = Store.getInspection(inspectionId);
+            if (inspection) {
+              quotation.customerName = inspection.customerName || quotation.customerName;
+              quotation.customerPhone = inspection.customerPhone || quotation.customerPhone;
+              quotation.customerAddress = inspection.customerAddress || quotation.customerAddress;
+              
+              // 如果有诊断结果，智能推荐部位
+              if (inspection.diagnosis && inspection.leakLocations) {
+                inspection.leakLocations.forEach(loc => {
+                  const itemId = mapLocationToItem(loc.name);
+                  if (itemId && !quotation.items.find(i => i.itemId === itemId)) {
+                    addItem(itemId);
+                  }
+                });
+              }
+            }
+          }
+          
+          // 尝试加载已保存的报价
+          if (projectId) {
+            const quotations = Store.getQuotations() || [];
+            const savedQuote = quotations.find(q => q.projectId === projectId);
+            if (savedQuote) {
+              Object.assign(quotation, JSON.parse(JSON.stringify(savedQuote)));
+            }
+          }
+        };
+        
+        // 将渗漏位置映射到报价部位
+        const mapLocationToItem = (locationName) => {
+          const map = {
+            '外墙': 'wall_surface',
+            '屋面': 'roof_surface',
+            '屋顶': 'roof_surface',
+            '窗框': 'window_seal',
+            '窗': 'window_seal',
+            '卫生间': 'bathroom_surface',
+            '厕所': 'bathroom_surface',
+            '浴室': 'bathroom_surface',
+            '阳台': 'balcony_surface',
+            '地下室': 'basement_surface',
+            '管道': 'pipe_penetration'
+          };
+          
+          for (const [key, value] of Object.entries(map)) {
+            if (locationName.includes(key)) {
+              return value;
+            }
+          }
+          return null;
+        };
+        
+        onMounted(() => {
+          loadFromParams();
+        });
+        
+        return {
+          quotation,
+          showItemPicker,
+          showPreview,
+          toast,
+          priceList,
+          validityDays,
+          currentDate,
+          subtotal,
+          finalTotal,
+          getItemName,
+          getItemUnit,
+          getItemUnitHtml,
+          getGradeName,
+          supportsThickness,
+          supportsHeight,
+          getThicknessCoeff,
+          getHeightCoeff,
+          getThicknessLabel,
+          getHeightLabel,
+          isThicknessEvaluation,
+          isHeightEvaluation,
+          hasCoefficients,
+          getPriceFormula,
+          getFinalUnitPrice,
+          calculateSubtotal,
+          addItem,
+          removeItem,
+          onItemChange,
+          onGradeChange,
+          onCoefficientChange,
+          saveQuotation,
+          saveAndShare,
+          closeQuotation
+        };
+      }
+    };
+    
+    createApp(QuotationApp).mount('#app');
+  </script>
+</body>
+</html>

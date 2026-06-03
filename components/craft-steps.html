@@ -1,0 +1,307 @@
+<!-- 
+  施工步骤组件 - 升级版
+  显示标准化的施工工艺步骤，支持质量标准和必拍照片审核
+  每一张照片就是一道质检关卡
+-->
+<template>
+  <div class="craft-steps-component">
+    <!-- 进度概览 -->
+    <div class="progress-overview" v-if="showProgress">
+      <div class="progress-bar">
+        <div class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+      </div>
+      <div class="progress-text">
+        <span class="current-step">第 {{ completedCount }} / {{ steps.length }} 步</span>
+        <span class="percent">{{ progressPercent }}%</span>
+      </div>
+    </div>
+    
+    <!-- 步骤列表 -->
+    <div class="steps-list">
+      <div 
+        v-for="(step, index) in steps" 
+        :key="index"
+        :class="[
+          'craft-step', 
+          { 
+            'active': activeIndex === index,
+            'completed': step.completed && step.reviewStatus === 'approved',
+            'rejected': step.reviewStatus === 'rejected',
+            'disabled': !isStepAccessible(index)
+          }
+        ]"
+      >
+        <!-- 步骤头部 -->
+        <div class="step-header" @click="toggleStep(index)">
+          <div class="step-status">
+            <span v-if="step.reviewStatus === 'approved'" class="status-icon approved">✓</span>
+            <span v-else-if="step.reviewStatus === 'rejected'" class="status-icon rejected">!</span>
+            <span v-else-if="activeIndex === index" class="status-icon active">{{ index + 1 }}</span>
+            <span v-else-if="step.completed" class="status-icon waiting">⏳</span>
+            <span v-else class="status-icon">{{ index + 1 }}</span>
+          </div>
+          
+          <div class="step-info">
+            <div class="step-name">
+              {{ index + 1 }}. {{ step.stepName || step.name }}
+              <span v-if="step.reviewStatus === 'approved'" class="review-badge approved">✅审核通过</span>
+              <span v-if="step.reviewStatus === 'rejected'" class="review-badge rejected">❌需返工</span>
+              <span v-if="step.completed && step.reviewStatus === 'pending'" class="review-badge pending">⏳待审核</span>
+            </div>
+            <div class="step-meta">
+              <span v-if="step.duration" class="step-duration">⏱️ {{ step.duration }}</span>
+              <span v-if="step.operatorName" class="step-operator">👤 {{ step.operatorName }}</span>
+              <span v-if="step.completedTime" class="step-time">{{ formatTime(step.completedTime) }}</span>
+            </div>
+          </div>
+          
+          <div class="step-arrow">{{ activeIndex === index ? '▼' : '▶' }}</div>
+        </div>
+        
+        <!-- 步骤详情 -->
+        <div v-if="activeIndex === index" class="step-content">
+          <!-- 质量标准 -->
+          <div class="quality-standard-section">
+            <div class="section-title">📋 质量标准</div>
+            <div class="quality-standard-text">{{ step.qualityStandard }}</div>
+          </div>
+          
+          <!-- 验收要求 -->
+          <div class="acceptance-criteria-section">
+            <div class="section-title">✅ 验收要求</div>
+            <div class="acceptance-criteria-text">{{ step.acceptanceCriteria }}</div>
+          </div>
+          
+          <!-- 必拍照片 -->
+          <div class="required-photos-section">
+            <div class="section-title">
+              📷 必拍照片
+              <span class="photo-count">{{ getUploadedCount(index) }}/{{ step.requiredPhotos?.length || 0 }}</span>
+            </div>
+            <div class="required-photos-grid">
+              <div 
+                v-for="(photoReq, photoIndex) in step.requiredPhotos" 
+                :key="photoIndex"
+                :class="['required-photo-item', { uploaded: isPhotoUploaded(index, photoIndex) }]"
+              >
+                <div class="photo-slot" @click="takePhoto(index, photoIndex)">
+                  <div v-if="isPhotoUploaded(index, photoIndex)" class="photo-preview">
+                    <img :src="getPhotoUrl(index, photoIndex)" alt="照片">
+                    <span class="photo-badge">{{ photoReq.name }}</span>
+                  </div>
+                  <div v-else class="photo-placeholder">
+                    <span class="photo-icon">📷</span>
+                    <span class="photo-label">{{ photoReq.name }}</span>
+                    <span class="photo-desc">{{ photoReq.desc }}</span>
+                  </div>
+                </div>
+                <div v-if="isPhotoUploaded(index, photoIndex)" class="photo-actions">
+                  <button class="btn-view" @click.stop="viewPhoto(index, photoIndex)">查看</button>
+                  <button class="btn-retake" @click.stop="takePhoto(index, photoIndex)">重拍</button>
+                </div>
+                <div v-else class="photo-required-tag">必须</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 施工要点 -->
+          <div v-if="step.keyPoints && step.keyPoints.length > 0" class="step-section">
+            <div class="section-title">🔑 施工要点</div>
+            <div class="key-points-list">
+              <div v-for="(point, pIdx) in step.keyPoints" :key="pIdx" class="key-point-item">
+                <span class="key-point-icon">•</span>
+                <span class="key-point-text">{{ point }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 审核信息 -->
+          <div v-if="step.reviewNote" class="review-note-section">
+            <div class="section-title">📌 审核意见</div>
+            <div class="review-note-content" :class="step.reviewStatus">{{ step.reviewNote }}</div>
+          </div>
+          
+          <!-- 操作按钮 -->
+          <div class="step-actions">
+            <button v-if="!step.completed" class="btn-take-photo" @click="takeNextPhoto(index)">
+              📷 拍照上传
+            </button>
+            <button 
+              v-if="!step.completed"
+              class="btn-complete"
+              @click="completeStep(index)"
+              :disabled="!canCompleteStep(index)"
+            >
+              {{ canCompleteStep(index) ? '✓ 完成此步' : '请先上传所有必拍照片' }}
+            </button>
+            <div v-if="step.completed && step.reviewStatus === 'pending'" class="waiting-review">⏳ 等待老板审核...</div>
+            <div v-if="step.completed && step.reviewStatus === 'rejected'" class="rejected-info">
+              <div class="rejected-text">❌ 审核打回，需返工</div>
+              <button class="btn-rework" @click="startRework(index)">开始返工</button>
+            </div>
+            <div v-if="step.completed && step.reviewStatus === 'approved'" class="completed-info">✅ 审核通过</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 照片查看弹窗 -->
+    <div v-if="showPhotoViewer" class="photo-viewer-overlay" @click="closePhotoViewer">
+      <div class="photo-viewer-content" @click.stop>
+        <img :src="viewerPhotoUrl" alt="照片">
+        <div class="photo-viewer-info">{{ viewerPhotoName }}</div>
+        <button class="photo-viewer-close" @click="closePhotoViewer">×</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'CraftSteps',
+  props: {
+    steps: { type: Array, required: true },
+    projectId: { type: String, required: true },
+    showProgress: { type: Boolean, default: true }
+  },
+  emits: ['complete', 'photo-add', 'notes-update', 'rework'],
+  setup(props, { emit }) {
+    const activeIndex = ref(0);
+    const showPhotoViewer = ref(false);
+    const viewerPhotoUrl = ref('');
+    const viewerPhotoName = ref('');
+    
+    const completedCount = computed(() => props.steps.filter(s => s.completed && s.reviewStatus === 'approved').length);
+    const progressPercent = computed(() => props.steps.length === 0 ? 0 : Math.round((completedCount.value / props.steps.length) * 100));
+    
+    const isStepAccessible = (index) => {
+      if (index === 0) return true;
+      return props.steps[index - 1]?.reviewStatus === 'approved';
+    };
+    
+    const canCompleteStep = (index) => {
+      const step = props.steps[index];
+      return (step.photos || []).length >= (step.requiredPhotos || []).length;
+    };
+    
+    const getUploadedCount = (stepIndex) => (props.steps[stepIndex].photos || []).length;
+    const isPhotoUploaded = (stepIndex, photoIndex) => (props.steps[stepIndex].photos || [])[photoIndex] !== undefined;
+    const getPhotoUrl = (stepIndex, photoIndex) => (props.steps[stepIndex].photos || [])[photoIndex]?.url || '';
+    
+    const toggleStep = (index) => {
+      if (!isStepAccessible(index) && activeIndex.value !== index) return;
+      activeIndex.value = activeIndex.value === index ? -1 : index;
+    };
+    
+    const takePhoto = (stepIndex, photoIndex) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          emit('photo-add', {
+            projectId: props.projectId, stepIndex, photoIndex,
+            photo: { id: Date.now().toString(), url: event.target.result, name: props.steps[stepIndex].requiredPhotos?.[photoIndex]?.name || '照片', timestamp: new Date().toISOString() }
+          });
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    };
+    
+    const takeNextPhoto = (stepIndex) => {
+      const photos = props.steps[stepIndex].photos || [];
+      const required = props.steps[stepIndex].requiredPhotos || [];
+      for (let i = 0; i < required.length; i++) { if (!photos[i]) { takePhoto(stepIndex, i); return; } }
+    };
+    
+    const viewPhoto = (stepIndex, photoIndex) => {
+      const photos = props.steps[stepIndex].photos || [];
+      if (photos[photoIndex]) { viewerPhotoUrl.value = photos[photoIndex].url; viewerPhotoName.value = photos[photoIndex].name; showPhotoViewer.value = true; }
+    };
+    const closePhotoViewer = () => { showPhotoViewer.value = false; viewerPhotoUrl.value = ''; viewerPhotoName.value = ''; };
+    const updateNotes = (stepIndex, notes) => emit('notes-update', { projectId: props.projectId, stepIndex, notes });
+    const completeStep = (index) => { if (!canCompleteStep(index)) return; emit('complete', props.projectId, index, { photos: props.steps[index].photos, notes: props.steps[index].notes }); };
+    const startRework = (index) => { emit('rework', props.projectId, index); activeIndex.value = index; };
+    const formatTime = (isoString) => { const d = new Date(isoString); return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+    
+    return { activeIndex, showPhotoViewer, viewerPhotoUrl, viewerPhotoName, completedCount, progressPercent, isStepAccessible, canCompleteStep, getUploadedCount, isPhotoUploaded, getPhotoUrl, toggleStep, takePhoto, takeNextPhoto, viewPhoto, closePhotoViewer, updateNotes, completeStep, startRework, formatTime };
+  }
+};
+</script>
+
+<style scoped>
+.craft-steps-component { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.progress-overview { margin-bottom: 16px; }
+.progress-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #07c160, #10b981); border-radius: 4px; transition: width 0.3s ease; }
+.progress-text { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #666; }
+.percent { color: #07c160; font-weight: 600; }
+.steps-list { display: flex; flex-direction: column; gap: 12px; }
+.craft-step { background: #fff; border-radius: 12px; border-left: 4px solid #ebedf0; overflow: hidden; transition: all 0.3s; }
+.craft-step.active { border-left-color: #1989fa; box-shadow: 0 2px 12px rgba(25, 137, 250, 0.15); }
+.craft-step.completed { border-left-color: #07c160; opacity: 0.9; }
+.craft-step.rejected { border-left-color: #ee0a24; background: #fff5f5; }
+.craft-step.disabled { opacity: 0.5; }
+.step-header { display: flex; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
+.step-status { margin-right: 12px; }
+.status-icon { width: 32px; height: 32px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #666; }
+.craft-step.active .status-icon { background: #1989fa; color: #fff; }
+.craft-step.completed .status-icon.approved { background: #07c160; color: #fff; }
+.craft-step.rejected .status-icon.rejected { background: #ee0a24; color: #fff; }
+.craft-step .status-icon.waiting { background: #ff976a; color: #fff; }
+.step-info { flex: 1; }
+.step-name { font-size: 15px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.review-badge.approved { background: #f0f9eb; color: #07c160; }
+.review-badge.rejected { background: #fff1f0; color: #ee0a24; }
+.review-badge.pending { background: #fff7e6; color: #ff976a; }
+.step-meta { display: flex; gap: 12px; margin-top: 4px; font-size: 12px; color: #999; flex-wrap: wrap; }
+.step-arrow { font-size: 14px; color: #ccc; }
+.step-content { padding: 0 16px 16px; border-top: 1px solid #f0f0f0; }
+.quality-standard-section, .acceptance-criteria-section, .step-section, .required-photos-section, .review-note-section { margin-top: 16px; }
+.section-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+.quality-standard-text { font-size: 14px; line-height: 1.6; color: #666; background: #f7f8fa; padding: 12px; border-radius: 8px; border-left: 3px solid #1989fa; }
+.acceptance-criteria-text { font-size: 14px; line-height: 1.6; color: #666; background: #f0f9eb; padding: 12px; border-radius: 8px; border-left: 3px solid #07c160; }
+.photo-count { font-size: 12px; color: #07c160; font-weight: 600; }
+.required-photos-grid { display: flex; flex-direction: column; gap: 10px; }
+.required-photo-item { position: relative; border-radius: 10px; overflow: hidden; background: #f7f8fa; border: 2px dashed #ebedf0; transition: all 0.3s; }
+.required-photo-item.uploaded { border: 2px solid #07c160; background: #fff; }
+.photo-slot { cursor: pointer; }
+.photo-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+.photo-icon { font-size: 32px; color: #ccc; margin-bottom: 8px; }
+.photo-label { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.photo-desc { font-size: 12px; color: #999; }
+.photo-preview { position: relative; }
+.photo-preview img { width: 100%; max-height: 200px; object-fit: cover; }
+.photo-badge { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.photo-actions { display: flex; gap: 8px; padding: 8px 12px; background: #f7f8fa; }
+.photo-actions button { flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-view { background: #e6f7ff; color: #1989fa; }
+.btn-retake { background: #fff7e6; color: #fa8c16; }
+.photo-required-tag { position: absolute; top: 8px; right: 8px; background: #ee0a24; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.key-points-list { display: flex; flex-direction: column; gap: 6px; }
+.key-point-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #666; }
+.key-point-icon { color: #1989fa; font-weight: bold; }
+.review-note-content { padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+.review-note-content.approved { background: #f0f9eb; color: #07c160; border-left: 3px solid #07c160; }
+.review-note-content.rejected { background: #fff1f0; color: #ee0a24; border-left: 3px solid #ee0a24; }
+.step-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.btn-take-photo { width: 100%; padding: 14px; background: linear-gradient(135deg, #1989fa, #096dd9); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-complete { width: 100%; padding: 14px; background: linear-gradient(135deg, #07c160, #06ad56); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-complete:disabled { background: #ccc; cursor: not-allowed; }
+.waiting-review { text-align: center; padding: 14px; background: #fff7e6; color: #fa8c16; border-radius: 8px; font-weight: 600; }
+.rejected-info { background: #fff1f0; border-radius: 8px; padding: 12px; }
+.rejected-text { color: #ee0a24; font-weight: 600; margin-bottom: 10px; }
+.btn-rework { width: 100%; padding: 12px; background: #ee0a24; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.completed-info { text-align: center; padding: 14px; background: #f0f9eb; color: #07c160; border-radius: 8px; font-weight: 600; }
+.photo-viewer-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.photo-viewer-content { position: relative; max-width: 95%; max-height: 90%; }
+.photo-viewer-content img { max-width: 100%; max-height: 80vh; object-fit: contain; }
+.photo-viewer-info { text-align: center; color: #fff; padding: 12px; font-size: 14px; }
+.photo-viewer-close { position: absolute; top: -40px; right: 0; width: 36px; height: 36px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; color: #fff; font-size: 24px; cursor: pointer; }
+</style>
