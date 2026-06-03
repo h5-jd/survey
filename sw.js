@@ -28,9 +28,9 @@ const urlsToCache = [
   './icon-192.png',
   './icon-512.png',
   // 外部依赖
-  'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js',
-  'https://cdn.jsdelivr.net/npm/vant@4/lib/index.css',
-  'https://cdn.jsdelivr.net/npm/vant@4/lib/vant.min.js',
+  'https://cdn.bootcdn.net/ajax/libs/vue/3.4.27/vue.global.prod.min.js',
+  'https://cdn.bootcdn.net/ajax/libs/vant/4.8.4/index.min.css',
+  'https://cdn.bootcdn.net/ajax/libs/vant/4.8.4/vant.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
