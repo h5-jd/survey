@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>聚达勘察助手 - 登录</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100%; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { font-family: -apple-system, sans-serif; height: 100%; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); }
     .login-container { min-height: 100vh; display: flex; flex-direction: column; padding: 20px; }
     .login-header { text-align: center; padding: 60px 0 40px; }
     .login-logo { width: 80px; height: 80px; margin: 0 auto 16px; background: #fff; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold; color: #1989fa; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
@@ -15,37 +15,16 @@
     .login-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); flex: 1; }
     .form-group { margin-bottom: 20px; }
     .form-label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
-    .form-input { width: 100%; padding: 14px 16px; border: 1px solid #ebedf0; border-radius: 10px; font-size: 16px; background: #fff; outline: none; }
+    .form-input { width: 100%; padding: 14px 16px; border: 1px solid #ebedf0; border-radius: 10px; font-size: 16px; background: #fff; outline: none; -webkit-appearance: none; }
     .form-input:focus { border-color: #1989fa; }
     .btn-login { width: 100%; padding: 16px; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); color: #fff; border: none; border-radius: 10px; font-size: 17px; font-weight: 600; cursor: pointer; }
     .btn-login:active { opacity: 0.9; }
-    .btn-login:disabled { background: #ccc; cursor: not-allowed; }
     .tips-text { font-size: 12px; color: #999; text-align: center; margin-top: 20px; line-height: 1.8; }
     .admin-hint { background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center; font-size: 13px; color: #1890ff; }
-    .employee-list { max-height: 200px; overflow-y: auto; border: 1px solid #ebedf0; border-radius: 10px; margin-top: 8px; }
-    .employee-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; display: flex; align-items: center; gap: 12px; }
-    .employee-item:last-child { border-bottom: none; }
-    .employee-item.selected { background: rgba(25,137,250,0.1); }
-    .employee-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1989fa 0%, #096dd9 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
-    .employee-info { flex: 1; }
-    .employee-name { font-size: 14px; font-weight: 600; color: #333; }
-    .employee-role { font-size: 12px; color: #999; }
-    .notice-box { background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px; padding: 12px; margin-top: 12px; text-align: center; font-size: 13px; color: #ad6800; }
-    .password-section { display: none; }
-    .password-section.show { display: block; }
-    .tab-container { display: flex; margin-bottom: 24px; border-radius: 8px; overflow: hidden; background: #f7f8fa; }
-    .tab-item { flex: 1; padding: 12px; text-align: center; font-size: 15px; font-weight: 500; cursor: pointer; color: #666; border: none; background: none; }
-    .tab-item.active { background: #1989fa; color: #fff; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-    .role-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-    .role-item { padding: 14px 8px; border: 2px solid #ebedf0; border-radius: 12px; text-align: center; cursor: pointer; }
-    .role-item.selected { border-color: #1989fa; background: rgba(25,137,250,0.05); }
-    .role-item .role-icon { font-size: 24px; margin-bottom: 4px; }
-    .role-item .role-name { font-size: 13px; font-weight: 600; color: #333; }
     #loginMsg { margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; display: none; }
     #loginMsg.success { display: block; background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
     #loginMsg.error { display: block; background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+    #debugInfo { margin-top: 16px; padding: 10px; background: #f5f5f5; border-radius: 8px; font-size: 11px; color: #666; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -57,256 +36,167 @@
     </div>
     
     <div class="login-card">
-      <!-- Tab切换 -->
-      <div class="tab-container">
-        <button class="tab-item active" id="tabLogin" onclick="switchTab('login')">登录</button>
-        <button class="tab-item" id="tabRegister" onclick="switchTab('register')">添加员工</button>
+      <div class="form-group">
+        <label class="form-label">手机号</label>
+        <input type="tel" class="form-input" id="inputPhone" placeholder="请输入手机号" maxlength="11">
       </div>
       
-      <!-- 登录面板 -->
-      <div class="tab-panel active" id="panelLogin">
+      <div id="passwordSection" style="display:none;">
         <div class="form-group">
-          <label class="form-label">手机号</label>
-          <input type="tel" class="form-input" id="inputPhone" placeholder="请输入手机号" maxlength="11" oninput="onPhoneInput()">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" id="inputPassword" placeholder="请输入密码" maxlength="4">
         </div>
-        
-        <div class="password-section" id="passwordSection">
-          <div class="form-group">
-            <label class="form-label">密码</label>
-            <input type="password" class="form-input" id="inputPassword" placeholder="请输入密码" maxlength="4">
-          </div>
-          <div class="admin-hint">👔 管理员登录，请输入密码</div>
-        </div>
-        
-        <div id="employeeSection" style="display:none;">
-          <div class="form-group">
-            <label class="form-label">选择员工</label>
-            <div class="employee-list" id="employeeList"></div>
-          </div>
-        </div>
-        
-        <div id="loginMsg"></div>
-        
-        <button class="btn-login" id="btnLogin" onclick="handleLogin()">登录</button>
-        
-        <div class="tips-text">
-          <p>👔 管理员：13800138000 / 密码：1234</p>
-          <p>📱 员工账号由管理员创建，无需密码</p>
-        </div>
+        <div class="admin-hint">👔 管理员登录，请输入密码</div>
       </div>
       
-      <!-- 添加员工面板 -->
-      <div class="tab-panel" id="panelRegister">
-        <div class="form-group">
-          <label class="form-label">手机号（作为登录账号）</label>
-          <input type="tel" class="form-input" id="createPhone" placeholder="请输入手机号" maxlength="11">
-        </div>
-        <div class="form-group">
-          <label class="form-label">姓名</label>
-          <input type="text" class="form-input" id="createName" placeholder="请输入员工姓名">
-        </div>
-        <div class="form-group">
-          <label class="form-label">选择角色</label>
-          <div class="role-selector">
-            <div class="role-item selected" onclick="selectRole(this, 'surveyor')">
-              <div class="role-icon">🔍</div>
-              <div class="role-name">勘察员</div>
-            </div>
-            <div class="role-item" onclick="selectRole(this, 'worker')">
-              <div class="role-icon">🔧</div>
-              <div class="role-name">施工员</div>
-            </div>
-            <div class="role-item" onclick="selectRole(this, 'reviewer')">
-              <div class="role-icon">✅</div>
-              <div class="role-name">验收员</div>
-            </div>
-          </div>
-        </div>
-        <div id="createMsg"></div>
-        <button class="btn-login" onclick="handleCreateEmployee()">创建员工账号</button>
-        <div class="tips-text">
-          <p>💡 员工账号创建后自动启用，无需密码即可登录</p>
-        </div>
+      <div id="loginMsg"></div>
+      
+      <button class="btn-login" id="btnLogin">登录</button>
+      
+      <div class="tips-text">
+        <p>👔 管理员：13800138000 / 密码：1234</p>
+        <p>📱 员工账号由管理员创建，无需密码</p>
       </div>
+      
+      <div id="debugInfo">加载中...</div>
     </div>
   </div>
 
-  <script src="../js/store.js"></script>
   <script>
-    // 检查Store是否加载
-    if (!window.Store) {
-      document.getElementById('loginMsg').className = 'error';
-      document.getElementById('loginMsg').textContent = '系统加载失败，请刷新页面重试';
-    } else {
-      Store.initDefaultAdmin();
+    // ====== 完全内联的登录逻辑，不依赖任何外部JS ======
+    
+    var KEYS = { USER_INFO: 'juda_user_info', USERS: 'juda_users' };
+    var ROLES = { ADMIN: 'admin', SURVEYOR: 'surveyor', WORKER: 'worker', REVIEWER: 'reviewer' };
+    
+    var debugLog = [];
+    function dbg(msg) {
+      debugLog.push(msg);
+      var el = document.getElementById('debugInfo');
+      if (el) el.textContent = debugLog.join(' → ');
     }
     
-    var selectedRole = 'surveyor';
-    var selectedEmployeeId = '';
+    function safeGet(key) {
+      try { var d = localStorage.getItem(key); return d ? JSON.parse(d) : null; }
+      catch(e) { dbg('读取失败:' + e.message); return null; }
+    }
+    
+    function safeSet(key, data) {
+      try { localStorage.setItem(key, JSON.stringify(data)); return true; }
+      catch(e) { dbg('保存失败:' + e.message); return false; }
+    }
+    
+    function getUsers() { return safeGet(KEYS.USERS) || []; }
+    
+    function initDefaultAdmin() {
+      var users = getUsers();
+      if (!users.find(function(u) { return u.role === ROLES.ADMIN; })) {
+        users.push({ id: 'admin_001', employeeId: '13800138000', name: '张工', role: ROLES.ADMIN, password: '1234', status: 'active', createTime: new Date().toISOString() });
+        safeSet(KEYS.USERS, users);
+        dbg('已创建默认管理员');
+      }
+    }
+    
+    function doLogin(employeeId, password) {
+      dbg('开始登录');
+      var users = getUsers();
+      dbg('用户数:' + users.length);
+      
+      var user = null;
+      for (var i = 0; i < users.length; i++) {
+        if (users[i].employeeId === employeeId) { user = users[i]; break; }
+      }
+      
+      if (!user) { dbg('用户不存在'); return { success: false, message: '用户不存在' }; }
+      if (user.status === 'disabled') { return { success: false, message: '账号已被禁用' }; }
+      if (user.role === ROLES.ADMIN && user.password !== password) { dbg('密码错误'); return { success: false, message: '密码错误' }; }
+      
+      // 保存登录状态
+      var sessionUser = {};
+      for (var k in user) { if (k !== 'password') sessionUser[k] = user[k]; }
+      sessionUser.lastLoginTime = new Date().toISOString();
+      safeSet(KEYS.USER_INFO, sessionUser);
+      
+      // 更新用户列表
+      for (var i = 0; i < users.length; i++) {
+        if (users[i].id === user.id) { users[i].lastLoginTime = sessionUser.lastLoginTime; break; }
+      }
+      safeSet(KEYS.USERS, users);
+      
+      dbg('登录成功');
+      return { success: true, user: sessionUser };
+    }
+    
+    // ====== 页面初始化 ======
+    
+    dbg('页面加载');
+    initDefaultAdmin();
+    dbg('初始化完成');
+    
     var isAdminLogin = false;
     
-    // Tab切换
-    function switchTab(tab) {
-      document.getElementById('tabLogin').className = tab === 'login' ? 'tab-item active' : 'tab-item';
-      document.getElementById('tabRegister').className = tab === 'register' ? 'tab-item active' : 'tab-item';
-      document.getElementById('panelLogin').className = tab === 'login' ? 'tab-panel active' : 'tab-panel';
-      document.getElementById('panelRegister').className = tab === 'register' ? 'tab-panel active' : 'tab-panel';
-    }
-    
-    // 手机号输入
-    function onPhoneInput() {
-      var phone = document.getElementById('inputPhone').value;
+    // 手机号输入检查
+    document.getElementById('inputPhone').addEventListener('input', function() {
+      var phone = this.value;
       isAdminLogin = false;
-      selectedEmployeeId = '';
-      document.getElementById('passwordSection').className = 'password-section';
-      document.getElementById('employeeSection').style.display = 'none';
+      document.getElementById('passwordSection').style.display = 'none';
       document.getElementById('loginMsg').style.display = 'none';
       
-      if (phone.length === 11 && window.Store) {
-        var check = Store.checkEmployeeExists(phone);
-        if (check.isAdmin) {
+      if (phone.length === 11) {
+        var users = getUsers();
+        var found = null;
+        for (var i = 0; i < users.length; i++) {
+          if (users[i].employeeId === phone) { found = users[i]; break; }
+        }
+        if (found && found.role === ROLES.ADMIN) {
           isAdminLogin = true;
-          document.getElementById('passwordSection').className = 'password-section show';
-        } else if (check.exists) {
-          document.getElementById('employeeSection').style.display = 'block';
-          renderEmployeeList(phone);
+          document.getElementById('passwordSection').style.display = 'block';
+          dbg('管理员账号');
+        } else if (found) {
+          dbg('员工账号');
         } else {
-          showMsg('loginMsg', check.message || '账号不存在', 'error');
+          showMsg('账号不存在，请联系管理员', 'error');
         }
       }
-    }
+    });
     
-    // 渲染员工列表
-    function renderEmployeeList(phone) {
-      var employees = Store.getActiveEmployees();
-      var filtered = employees.filter(function(e) { return e.employeeId === phone || e.phone === phone; });
-      var listEl = document.getElementById('employeeList');
-      
-      if (filtered.length === 0) {
-        // 如果没有精确匹配，显示全部
-        filtered = employees;
-      }
-      
-      if (filtered.length === 0) {
-        listEl.innerHTML = '<div class="notice-box">暂无员工账号</div>';
-        return;
-      }
-      
-      var html = '';
-      var roleMap = { admin: '管理员', surveyor: '勘察员', worker: '施工员', reviewer: '验收员' };
-      filtered.forEach(function(emp) {
-        html += '<div class="employee-item" onclick="selectEmployee(\'' + emp.id + '\', \'' + emp.name + '\')">' +
-          '<div class="employee-avatar">' + emp.name.charAt(0) + '</div>' +
-          '<div class="employee-info">' +
-          '<div class="employee-name">' + emp.name + '</div>' +
-          '<div class="employee-role">' + (roleMap[emp.role] || emp.role) + ' · ' + emp.employeeId + '</div>' +
-          '</div></div>';
-      });
-      listEl.innerHTML = html;
-    }
-    
-    // 选择员工
-    function selectEmployee(id, name) {
-      selectedEmployeeId = id;
-      var items = document.querySelectorAll('.employee-item');
-      items.forEach(function(item) { item.className = 'employee-item'; });
-      event.currentTarget.className = 'employee-item selected';
-    }
-    
-    // 选择角色
-    function selectRole(el, role) {
-      selectedRole = role;
-      document.querySelectorAll('.role-item').forEach(function(item) { item.className = 'role-item'; });
-      el.className = 'role-item selected';
-    }
-    
-    // 显示消息
-    function showMsg(id, text, type) {
-      var el = document.getElementById(id);
-      el.textContent = text;
-      el.className = type;
-    }
-    
-    // 登录
-    function handleLogin() {
-      if (!window.Store) {
-        alert('系统未加载，请刷新页面');
-        return;
-      }
-      
+    // 登录按钮
+    document.getElementById('btnLogin').addEventListener('click', function() {
       var phone = document.getElementById('inputPhone').value;
       var password = document.getElementById('inputPassword').value;
       
-      if (!phone) {
-        showMsg('loginMsg', '请输入手机号', 'error');
-        return;
-      }
-      
-      try {
-        var result;
-        if (isAdminLogin) {
-          if (!password) {
-            showMsg('loginMsg', '请输入密码', 'error');
-            return;
-          }
-          result = Store.login(phone, password);
-        } else {
-          if (!selectedEmployeeId) {
-            showMsg('loginMsg', '请选择员工', 'error');
-            return;
-          }
-          result = Store.login(selectedEmployeeId, '');
-        }
-        
-        if (result.success) {
-          showMsg('loginMsg', '登录成功！正在跳转...', 'success');
-          setTimeout(function() {
-            window.location.href = '../index.html';
-          }, 800);
-        } else {
-          showMsg('loginMsg', result.message || '登录失败', 'error');
-        }
-      } catch(e) {
-        showMsg('loginMsg', '登录出错：' + e.message, 'error');
-      }
-    }
-    
-    // 创建员工
-    function handleCreateEmployee() {
-      if (!window.Store) {
-        alert('系统未加载，请刷新页面');
-        return;
-      }
-      
-      var phone = document.getElementById('createPhone').value;
-      var name = document.getElementById('createName').value;
+      dbg('点击登录 phone=' + phone);
       
       if (!phone || phone.length !== 11) {
-        showMsg('createMsg', '请输入正确的手机号', 'error');
+        showMsg('请输入正确的手机号', 'error');
         return;
       }
-      if (!name) {
-        showMsg('createMsg', '请输入员工姓名', 'error');
+      
+      if (isAdminLogin && !password) {
+        showMsg('请输入密码', 'error');
         return;
       }
       
       try {
-        var result = Store.createEmployeeByAdmin({
-          employeeId: phone,
-          name: name,
-          role: selectedRole
-        });
-        
+        var result = doLogin(phone, password || '');
         if (result.success) {
-          showMsg('createMsg', '创建成功！' + name + ' 可用手机号 ' + phone + ' 登录', 'success');
-          document.getElementById('createPhone').value = '';
-          document.getElementById('createName').value = '';
+          showMsg('登录成功！正在跳转...', 'success');
+          dbg('跳转主页');
+          setTimeout(function() {
+            window.location.href = '../index.html';
+          }, 1000);
         } else {
-          showMsg('createMsg', result.message || '创建失败', 'error');
+          showMsg(result.message, 'error');
         }
       } catch(e) {
-        showMsg('createMsg', '创建出错：' + e.message, 'error');
+        dbg('异常:' + e.message);
+        showMsg('登录出错：' + e.message, 'error');
       }
+    });
+    
+    function showMsg(text, type) {
+      var el = document.getElementById('loginMsg');
+      el.textContent = text;
+      el.className = type;
     }
   </script>
 </body>
