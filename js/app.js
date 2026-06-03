@@ -633,10 +633,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // ========== 初始化 ==========
       onMounted(async () => {
         checkLogin();
-        loadData();
+        if (isLoggedIn.value) loadData();
         if (settings.value.cozeBotId) {
           CozeAPI.setConfig({ botId: settings.value.cozeBotId, accessToken: settings.value.cozeToken });
         }
+        
+        // 监听登录成功事件（从内嵌登录页触发）
+        window.addEventListener('login-success', () => {
+          checkLogin();
+          if (isLoggedIn.value) loadData();
+        });
         
         // v4.0 初始化模块
         PhotoManager.init();
@@ -737,13 +743,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="loading-text">加载中...</div>
         </div>
         
-        <!-- 未登录 -->
-        <div v-else-if="!isLoggedIn" class="login-redirect">
-          <div class="login-redirect-content">
-            <div style="font-size: 64px;">🔒</div>
-            <div style="font-size: 18px; font-weight: 600; margin: 16px 0;">请先登录</div>
-            <a href="pages/login.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;color:#fff;text-align:center;">去登录</a>
-          </div>
+        <!-- 未登录 - 由内嵌登录页处理，这里只显示加载提示 -->
+        <div v-else-if="!isLoggedIn" class="loading-overlay">
+          <div class="loading-text">请登录...</div>
         </div>
 
         <!-- 已登录 - 主界面 -->
