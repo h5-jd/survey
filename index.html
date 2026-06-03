@@ -163,8 +163,10 @@
           }
           
           if (result.success) {
-            // 登录成功，直接刷新页面（刷新后会被自动检测到已登录，隐藏登录界面）
-            window.location.reload();
+            // 登录成功：隐藏登录界面，通知Vue刷新状态（不刷新页面！）
+            document.getElementById('loginScreen').style.display = 'none';
+            // 触发自定义事件，让Vue app知道已登录
+            window.dispatchEvent(new Event('login-success'));
           } else {
             showMsg(result.message || '登录失败', 'error');
           }
