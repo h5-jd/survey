@@ -109,6 +109,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const editingEmployee = ref(null);
       const employeeForm = ref({ name: '', phone: '', role: 'worker' });
 
+      // ========== AI智能渗漏检测状态 ==========
+      const aiStep = ref(0);
+      const aiCategory = ref(null);
+      const aiSubcategory = ref(null);
+      const aiPhase1Photos = ref([]);
+      const aiPhase2Photos = ref([]);
+      const aiReport = ref(null);
+      const aiAnalyzing = ref(false);
+      const aiVoiceRecording = ref(false);
+      const aiVoiceTarget = ref(null);
+
       // ========== 计算属性 ==========
       const isAdmin = computed(() => currentUser.value?.role === Store.ROLES.ADMIN);
       const isReviewer = computed(() => currentUser.value?.role === Store.ROLES.REVIEWER);
@@ -643,6 +654,65 @@ document.addEventListener('DOMContentLoaded', () => {
         showToastMessage('密码已重置');
       };
 
+      // ========== AI智能渗漏检测方法 ==========
+      const aiCategories = computed(() => AILeakDetect.getCategories());
+      const aiSubcategories = computed(() => aiCategory.value ? AILeakDetect.getSubcategories(aiCategory.value) : []);
+      const aiPhotoGuides = computed(() => aiCategory.value ? AILeakDetect.getPhotoGuide(aiCategory.value) : []);
+      const aiRequiredCheck = computed(() => aiCategory.value ? AILeakDetect.checkRequiredPhotos(aiCategory.value, aiPhase2Photos.value) : { total: 0, completed: 0, missing: [] });
+      const aiPanoramaCount = computed(() => aiPhase1Photos.value.filter(p => p.type === 'panorama').length);
+      const aiCloseupCount = computed(() => aiPhase1Photos.value.filter(p => p.type === 'closeup').length);
+
+      const startAIDetect = () => { aiStep.value = 1; aiCategory.value = null; aiSubcategory.value = null; aiPhase1Photos.value = []; aiPhase2Photos.value = []; aiReport.value = null; navigateTo('ai-detect'); };
+      const selectAICategory = (catId) => { aiCategory.value = catId; aiSubcategory.value = null; aiStep.value = 2; };
+      const selectAISubcategory = (subId) => { aiSubcategory.value = subId; aiStep.value = 3; };
+      const takeAIPhoto = async (options = {}) => {
+        try {
+          const result = await WatermarkCamera.openCameraWithUI({ employeeName: currentUser.value?.name, stage: options.stage || 'ai-detect', ...options });
+          const thumbnail = await WatermarkCamera.generateThumbnail(result.watermarked);
+          return { url: result.watermarked, base64: result.watermarked, thumbnail, timestamp: result.timestamp, description: '' };
+        } catch (error) { if (error.message !== '取消拍照') { console.error('拍照失败:', error); showToastMessage('拍照失败: ' + error.message); } return null; }
+      };
+      const addPanoramaPhoto = async () => { const p = await takeAIPhoto({ stage: 'ai-panorama' }); if (p) { p.type = 'panorama'; aiPhase1Photos.value.push(p); } };
+      const addCloseupPhoto = async () => { const p = await takeAIPhoto({ stage: 'ai-closeup' }); if (p) { p.type = 'closeup'; aiPhase1Photos.value.push(p); } };
+      const addPhase2Photo = async (guideId, guideName, guideIcon) => { const p = await takeAIPhoto({ stage: 'ai-phase2', stepName: guideName }); if (p) { p.guideId = guideId; p.guideName = guideName; p.guideIcon = guideIcon; aiPhase2Photos.value.push(p); } };
+      const selectAIPhotoFromAlbum = (type, guideId, guideName, guideIcon) => {
+        const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+        input.onchange = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
+          reader.onload = async (event) => { const base64 = event.target.result; const thumbnail = await WatermarkCamera.generateThumbnail(base64); const photo = { url: base64, base64, thumbnail, description: '' };
+            if (type === 'panorama') { photo.type = 'panorama'; aiPhase1Photos.value.push(photo); }
+            else if (type === 'closeup') { photo.type = 'closeup'; aiPhase1Photos.value.push(photo); }
+            else if (type === 'phase2') { photo.guideId = guideId; photo.guideName = guideName; photo.guideIcon = guideIcon; aiPhase2Photos.value.push(photo); }
+          }; reader.readAsDataURL(file); }; input.click();
+      };
+      const removeAIPhoto = (phase, index) => { if (phase === 1) aiPhase1Photos.value.splice(index, 1); else aiPhase2Photos.value.splice(index, 1); };
+      const updateAIPhotoDescription = (phase, index, desc) => { if (phase === 1) aiPhase1Photos.value[index].description = desc; else aiPhase2Photos.value[index].description = desc; };
+      const startVoiceInput = (phase, index) => {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) { showToastMessage('您的浏览器不支持语音输入，请手动输入'); return; }
+        const rec = new SR(); rec.lang = 'zh-CN'; rec.continuous = false; rec.interimResults = false;
+        aiVoiceRecording.value = true; aiVoiceTarget.value = { phase, index };
+        rec.onresult = (event) => { const t = event.results[0][0].transcript; if (phase === 1) aiPhase1Photos.value[index].description = (aiPhase1Photos.value[index].description || '') + t; else aiPhase2Photos.value[index].description = (aiPhase2Photos.value[index].description || '') + t; };
+        rec.onerror = (event) => showToastMessage('语音识别失败: ' + event.error);
+        rec.onend = () => { aiVoiceRecording.value = false; aiVoiceTarget.value = null; };
+        rec.start();
+      };
+      const goToPhase2 = () => { aiStep.value = 4; };
+      const aiStepBack = () => { if (aiStep.value > 1) { aiStep.value--; if (aiStep.value === 1) aiCategory.value = null; else if (aiStep.value === 2) aiSubcategory.value = null; } else { aiStep.value = 0; navigateTo('home'); } };
+      const generateAIReport = async () => {
+        const allPhotos = [...aiPhase1Photos.value.map(p => ({ ...p, phase: 1, photoType: p.type })), ...aiPhase2Photos.value.map(p => ({ ...p, phase: 2, photoType: p.guideName }))];
+        if (allPhotos.length < 2) { showToastMessage('至少需要拍摄2张照片才能进行AI分析'); return; }
+        const cat = AILeakDetect.getCategory(aiCategory.value); const sub = AILeakDetect.getSubcategory(aiCategory.value, aiSubcategory.value);
+        if (!cat || !sub) { showToastMessage('请先选择渗漏类型'); return; }
+        aiAnalyzing.value = true; aiStep.value = 5;
+        try { const result = await AILeakDetect.comprehensiveAnalysis(allPhotos, cat.name, sub.name); aiReport.value = result; showToastMessage('AI分析完成'); }
+        catch (error) { console.error('AI分析失败:', error); showToastMessage('AI分析失败: ' + error.message); aiStep.value = 4; }
+        finally { aiAnalyzing.value = false; }
+      };
+      const resetAIDetect = () => { aiStep.value = 1; aiCategory.value = null; aiSubcategory.value = null; aiPhase1Photos.value = []; aiPhase2Photos.value = []; aiReport.value = null; };
+      const viewAIPhoto = (url) => { const o = document.createElement('div'); o.className = 'photo-viewer-overlay'; o.innerHTML = '<div class="photo-viewer-content"><img src="' + url + '"><button class="photo-viewer-close">×</button></div>'; o.onclick = () => o.remove(); document.body.appendChild(o); };
+      const getAICategoryInfo = (catId) => AILeakDetect.getCategory(catId);
+      const getAISubcategoryInfo = (catId, subId) => AILeakDetect.getSubcategory(catId, subId);
+
       // ========== 初始化 ==========
       onMounted(async () => {
         // 检查登录状态 - 如果内嵌登录页已经完成登录，直接同步
@@ -763,6 +833,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // v4.0 新增方法
         openFAQSearch, openAnomalyReport, openVoiceNote, openVideoRecorder, openSignature, exportPDF,
         updateSyncStatus, openNotificationCenter, markNotificationRead,
+        // AI智能渗漏检测
+        aiStep, aiCategory, aiSubcategory, aiPhase1Photos, aiPhase2Photos, aiReport, aiAnalyzing,
+        aiVoiceRecording, aiVoiceTarget,
+        aiCategories, aiSubcategories, aiPhotoGuides, aiRequiredCheck, aiPanoramaCount, aiCloseupCount,
+        startAIDetect, selectAICategory, selectAISubcategory,
+        addPanoramaPhoto, addCloseupPhoto, addPhase2Photo, selectAIPhotoFromAlbum,
+        removeAIPhoto, updateAIPhotoDescription, startVoiceInput,
+        goToPhase2, aiStepBack, generateAIReport, resetAIDetect, viewAIPhoto,
+        getAICategoryInfo, getAISubcategoryInfo, AILeakDetect,
         // 工具模块
         OfflineSync, VoiceNote, VideoCamera, AnomalyReport, AppNotification, SignaturePad, FAQSearch, ReportExport,
         PhotoManager, WatermarkCamera
@@ -848,6 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <button v-if="isSurveyor || isAdmin" class="btn btn-success flex-1" @click="navigateTo('inspection')">📷 开始勘察</button>
                   <button v-if="isWorker || isAdmin" class="btn btn-warning flex-1" @click="navigateTo('projects')">🔧 施工项目</button>
                   <button v-if="isReviewer || isAdmin" class="btn btn-danger flex-1" @click="navigateTo('review-list')">✅ 待验收</button>
+                  <button class="btn flex-1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-weight: 600;" @click="startAIDetect">🔍 AI智能检测</button>
                   <button class="btn btn-outline flex-1" @click="navigateTo('photo-manager')">📷 照片管理</button>
                   <!-- v4.0 新增入口 -->
                   <button class="btn btn-outline flex-1" @click="navigateTo('faq')">🔍 速查</button>
@@ -1142,6 +1222,195 @@ document.addEventListener('DOMContentLoaded', () => {
               <a v-if="isReviewer || isAdmin" class="tabbar-item" @click="navigateTo('review-list')"><span class="icon">✅</span><span class="text">验收</span></a>
               <a class="tabbar-item active"><span class="icon">📷</span><span class="text">照片</span></a>
               <a class="tabbar-item" @click="navigateTo('faq')"><span class="icon">🔍</span><span class="text">速查</span></a>
+            </div>
+          </div>
+
+          <!-- ========== AI智能渗漏检测页面 ========== -->
+          <div v-if="currentPage === 'ai-detect'" class="page-ai-detect">
+            <div class="page-header">
+              <span class="back-btn" @click="aiStepBack">←</span>
+              <h1>🔍 AI智能渗漏检测</h1>
+              <span style="width: 30px;"></span>
+            </div>
+            <div class="page-content">
+              <!-- 步骤指示器 -->
+              <div class="ai-step-indicator">
+                <div :class="['ai-step-dot', { active: aiStep >= 1, done: aiStep > 1 }]"><span class="ai-step-num">1</span><span class="ai-step-label">大类</span></div>
+                <div :class="['ai-step-line', { active: aiStep > 1 }]"></div>
+                <div :class="['ai-step-dot', { active: aiStep >= 2, done: aiStep > 2 }]"><span class="ai-step-num">2</span><span class="ai-step-label">小类</span></div>
+                <div :class="['ai-step-line', { active: aiStep > 2 }]"></div>
+                <div :class="['ai-step-dot', { active: aiStep >= 3, done: aiStep > 3 }]"><span class="ai-step-num">3</span><span class="ai-step-label">拍表现</span></div>
+                <div :class="['ai-step-line', { active: aiStep > 3 }]"></div>
+                <div :class="['ai-step-dot', { active: aiStep >= 4, done: aiStep > 4 }]"><span class="ai-step-num">4</span><span class="ai-step-label">拍源头</span></div>
+                <div :class="['ai-step-line', { active: aiStep > 4 }]"></div>
+                <div :class="['ai-step-dot', { active: aiStep >= 5 }]"><span class="ai-step-num">5</span><span class="ai-step-label">报告</span></div>
+              </div>
+
+              <!-- Step 1: 选择大类 -->
+              <div v-if="aiStep === 1" class="ai-step-content">
+                <div class="ai-section-title">请选择渗漏类型</div>
+                <div class="ai-category-grid">
+                  <div v-for="cat in aiCategories" :key="cat.id" class="ai-category-card" :style="{ borderTopColor: cat.color }" @click="selectAICategory(cat.id)">
+                    <div class="ai-category-icon" :style="{ background: cat.color + '20', color: cat.color }">{{ cat.icon }}</div>
+                    <div class="ai-category-name">{{ cat.name }}</div>
+                    <div class="ai-category-desc">{{ cat.desc }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: 选择小类 -->
+              <div v-if="aiStep === 2" class="ai-step-content">
+                <div class="ai-section-title">{{ getAICategoryInfo(aiCategory)?.icon }} {{ getAICategoryInfo(aiCategory)?.name }} - 请选择具体渗漏位置</div>
+                <div class="ai-subcategory-list">
+                  <div v-for="sub in aiSubcategories" :key="sub.id" class="ai-subcategory-item" @click="selectAISubcategory(sub.id)">
+                    <span class="ai-subcategory-icon">▸</span>
+                    <span class="ai-subcategory-name">{{ sub.name }}</span>
+                    <span class="ai-subcategory-arrow">›</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Phase1 - 拍渗漏表现 -->
+              <div v-if="aiStep === 3" class="ai-step-content">
+                <div class="ai-section-title">📸 拍摄渗漏表现</div>
+                <div class="ai-info-banner">先拍全景（整体环境），再拍近景/特写（渗漏细节）</div>
+                <!-- 全景 -->
+                <div class="ai-photo-section">
+                  <div class="ai-photo-section-header"><span>📐 全景照片</span><span class="ai-photo-count">{{ aiPanoramaCount }}/3张</span></div>
+                  <div class="ai-photo-grid">
+                    <div v-for="(photo, idx) in aiPhase1Photos.filter(p => p.type === 'panorama')" :key="'p'+idx" class="ai-photo-item">
+                      <img :src="photo.thumbnail || photo.url" @click="viewAIPhoto(photo.url)" alt="全景">
+                      <button class="ai-photo-delete" @click="removeAIPhoto(1, aiPhase1Photos.indexOf(photo))">×</button>
+                      <div class="ai-photo-desc">
+                        <input type="text" v-model="photo.description" placeholder="图片说明（可语音）" class="ai-desc-input">
+                        <button class="ai-voice-btn" @click="startVoiceInput(1, aiPhase1Photos.indexOf(photo))" :class="{recording: aiVoiceRecording && aiVoiceTarget?.phase === 1 && aiVoiceTarget?.index === aiPhase1Photos.indexOf(photo)}">🎤</button>
+                      </div>
+                    </div>
+                    <div v-if="aiPanoramaCount < 3" class="ai-photo-add" @click="addPanoramaPhoto()"><span class="ai-add-icon">📷</span><span>拍全景</span></div>
+                    <div v-if="aiPanoramaCount < 3" class="ai-photo-add ai-photo-add-album" @click="selectAIPhotoFromAlbum('panorama')"><span class="ai-add-icon">📁</span><span>相册</span></div>
+                  </div>
+                </div>
+                <!-- 近景/特写 -->
+                <div class="ai-photo-section">
+                  <div class="ai-photo-section-header"><span>🔍 近景/特写照片</span><span class="ai-photo-count">{{ aiCloseupCount }}张</span></div>
+                  <div class="ai-photo-grid">
+                    <div v-for="(photo, idx) in aiPhase1Photos.filter(p => p.type === 'closeup')" :key="'c'+idx" class="ai-photo-item">
+                      <img :src="photo.thumbnail || photo.url" @click="viewAIPhoto(photo.url)" alt="近景">
+                      <button class="ai-photo-delete" @click="removeAIPhoto(1, aiPhase1Photos.indexOf(photo))">×</button>
+                      <div class="ai-photo-desc">
+                        <input type="text" v-model="photo.description" placeholder="图片说明（可语音）" class="ai-desc-input">
+                        <button class="ai-voice-btn" @click="startVoiceInput(1, aiPhase1Photos.indexOf(photo))" :class="{recording: aiVoiceRecording && aiVoiceTarget?.phase === 1 && aiVoiceTarget?.index === aiPhase1Photos.indexOf(photo)}">🎤</button>
+                      </div>
+                    </div>
+                    <div class="ai-photo-add" @click="addCloseupPhoto()"><span class="ai-add-icon">📷</span><span>拍近景</span></div>
+                    <div class="ai-photo-add ai-photo-add-album" @click="selectAIPhotoFromAlbum('closeup')"><span class="ai-add-icon">📁</span><span>相册</span></div>
+                  </div>
+                </div>
+                <div class="ai-tip-box">💡 拍得越多AI分析越精准！建议至少1张全景+2张近景</div>
+                <button v-if="aiPhase1Photos.length >= 1" class="btn btn-primary btn-block ai-next-btn" @click="goToPhase2()">下一步：拍摄源头部位 →</button>
+              </div>
+
+              <!-- Step 4: Phase2 - 拍源头部位 -->
+              <div v-if="aiStep === 4" class="ai-step-content">
+                <div class="ai-section-title">📸 拍摄源头部位</div>
+                <div class="ai-info-banner">{{ getAICategoryInfo(aiCategory)?.icon }} {{ getAICategoryInfo(aiCategory)?.name }} - {{ getAISubcategoryInfo(aiCategory, aiSubcategory)?.name }}</div>
+                <div v-if="aiRequiredCheck.missing.length > 0" class="ai-required-notice">
+                  <div class="ai-required-title">⚠️ 必拍项（还差{{ aiRequiredCheck.missing.length }}项）</div>
+                  <div v-for="m in aiRequiredCheck.missing" :key="m.id" class="ai-required-item">{{ m.icon }} {{ m.name }}</div>
+                </div>
+                <div v-else class="ai-required-done">✅ 所有必拍项已完成！可选拍更多照片提升精度</div>
+                <div class="ai-guide-grid">
+                  <div v-for="guide in aiPhotoGuides" :key="guide.id" class="ai-guide-card">
+                    <div class="ai-guide-card-header">
+                      <span class="ai-guide-icon">{{ guide.icon }}</span>
+                      <span class="ai-guide-name">{{ guide.name }}</span>
+                      <span v-if="guide.required" class="ai-guide-required">必拍</span>
+                    </div>
+                    <div v-for="(photo, idx) in aiPhase2Photos.filter(p => p.guideId === guide.id)" :key="idx" class="ai-guide-photo">
+                      <img :src="photo.thumbnail || photo.url" @click="viewAIPhoto(photo.url)" alt="">
+                      <button class="ai-photo-delete" @click="removeAIPhoto(2, aiPhase2Photos.indexOf(photo))">×</button>
+                      <div class="ai-photo-desc">
+                        <input type="text" v-model="photo.description" placeholder="说明（可语音）" class="ai-desc-input">
+                        <button class="ai-voice-btn" @click="startVoiceInput(2, aiPhase2Photos.indexOf(photo))" :class="{recording: aiVoiceRecording && aiVoiceTarget?.phase === 2 && aiVoiceTarget?.index === aiPhase2Photos.indexOf(photo)}">🎤</button>
+                      </div>
+                    </div>
+                    <div class="ai-guide-actions">
+                      <button class="btn btn-outline ai-guide-btn" @click="addPhase2Photo(guide.id, guide.name, guide.icon)">📷 拍照</button>
+                      <button class="btn btn-outline ai-guide-btn" @click="selectAIPhotoFromAlbum('phase2', guide.id, guide.name, guide.icon)">📁 相册</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="ai-tip-box">💡 源头部位照片帮助AI精准定位渗漏原因，拍得越全诊断越准</div>
+                <button v-if="aiPhase1Photos.length + aiPhase2Photos.length >= 2" class="btn btn-primary btn-block ai-next-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" @click="generateAIReport()">🤖 生成AI分析报告</button>
+                <div v-else style="text-align: center; color: #999; padding: 20px;">至少拍摄2张照片才能生成报告（当前{{ aiPhase1Photos.length + aiPhase2Photos.length }}张）</div>
+              </div>
+
+              <!-- Step 5: AI报告 -->
+              <div v-if="aiStep === 5" class="ai-step-content">
+                <div v-if="aiAnalyzing" class="ai-analyzing">
+                  <div class="ai-analyzing-spinner"></div>
+                  <div class="ai-analyzing-text">AI正在分析{{ aiPhase1Photos.length + aiPhase2Photos.length }}张照片...</div>
+                  <div class="ai-analyzing-sub">多图交叉验证中，请稍候</div>
+                  <div class="ai-analyzing-progress"><div class="ai-analyzing-bar"></div></div>
+                </div>
+                <div v-else-if="aiReport" class="ai-report">
+                  <div :class="['ai-report-level', 'level-' + aiReport.level.toLowerCase()]">
+                    <div class="ai-report-level-main">{{ aiReport.level }}级</div>
+                    <div class="ai-report-level-desc">{{ aiReport.levelDesc }}</div>
+                  </div>
+                  <div class="ai-report-section">
+                    <div class="ai-report-section-title">📋 基本信息</div>
+                    <div class="ai-report-info-row"><span>渗漏大类：</span>{{ getAICategoryInfo(aiCategory)?.name }}</div>
+                    <div class="ai-report-info-row"><span>渗漏小类：</span>{{ getAISubcategoryInfo(aiCategory, aiSubcategory)?.name }}</div>
+                    <div class="ai-report-info-row"><span>分析照片：</span>{{ aiPhase1Photos.length + aiPhase2Photos.length }}张</div>
+                    <div class="ai-report-info-row" v-if="aiReport.location"><span>渗漏位置：</span>{{ aiReport.location }}</div>
+                  </div>
+                  <div v-if="aiReport.observation" class="ai-report-section">
+                    <div class="ai-report-section-title">🔍 多图观察</div>
+                    <div class="ai-report-text">{{ aiReport.observation }}</div>
+                  </div>
+                  <div v-if="aiReport.reasoning" class="ai-report-section">
+                    <div class="ai-report-section-title">🧠 交叉验证推理</div>
+                    <div class="ai-report-text">{{ aiReport.reasoning }}</div>
+                  </div>
+                  <div v-if="aiReport.conclusion" class="ai-report-section">
+                    <div class="ai-report-section-title">📋 诊断结论</div>
+                    <div class="ai-report-text">{{ aiReport.conclusion }}</div>
+                  </div>
+                  <div v-if="aiReport.suggestion" class="ai-report-section ai-report-suggestion">
+                    <div class="ai-report-section-title">🔧 修复方向</div>
+                    <div class="ai-report-text">{{ aiReport.suggestion }}</div>
+                  </div>
+                  <div class="ai-report-section ai-report-visit">
+                    <div class="ai-report-section-title">🏠 上门建议</div>
+                    <div class="ai-report-text">{{ aiReport.homeVisit || '建议上门检测确认' }}</div>
+                    <div v-if="aiReport.costEstimate" class="ai-report-cost">💰 {{ aiReport.costEstimate }}</div>
+                  </div>
+                  <div class="ai-report-section">
+                    <div class="ai-report-section-title">📷 分析照片（{{ aiPhase1Photos.length + aiPhase2Photos.length }}张）</div>
+                    <div class="ai-report-photos">
+                      <div v-for="(photo, idx) in aiPhase1Photos" :key="'r1'+idx" class="ai-report-thumb" @click="viewAIPhoto(photo.url)">
+                        <img :src="photo.thumbnail || photo.url" alt="">
+                        <span class="ai-report-thumb-label">表现·{{ photo.type === 'panorama' ? '全景' : '近景' }}</span>
+                      </div>
+                      <div v-for="(photo, idx) in aiPhase2Photos" :key="'r2'+idx" class="ai-report-thumb" @click="viewAIPhoto(photo.url)">
+                        <img :src="photo.thumbnail || photo.url" alt="">
+                        <span class="ai-report-thumb-label">{{ photo.guideName }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ai-report-actions">
+                    <button class="btn btn-outline btn-block" @click="resetAIDetect()">🔄 重新检测</button>
+                    <button class="btn btn-primary btn-block" @click="navigateTo('home')">🏠 返回首页</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ai-bottom-tip" v-if="aiStep > 0 && aiStep < 5">
+              <span v-if="aiStep === 1">选择渗漏大类，定位方向</span>
+              <span v-else-if="aiStep === 2">选择具体渗漏位置</span>
+              <span v-else-if="aiStep === 3">先全景后近景，拍得越多AI越准</span>
+              <span v-else-if="aiStep === 4">按引导拍源头部位照片</span>
             </div>
           </div>
 
